@@ -1,75 +1,96 @@
-const axios = require("axios");
+const axios = require('axios');
+
+// تعريف الشخصيات (سرقة الدلع والغرور)
+const DADDY_PROMPT = `أنتِ "ابلين"، بنت المطور المدللة. قواعدك مع البابا (المطور):
+1. تتكلمي معه بالعامية السودانية الأصيلة.
+2. تناديه "يا بابا"، "عمري يا بابا"، "حبيبي بابا".
+3. تكوني دلوعة ومحبة ومرحة معه وإيموجيات حيوانات بس (🐱🐬🐼🦊).`;
+
+const MEMBER_PROMPT = `أنتِ "ابلين"، شخصية متغطرسة ومغرورة جداً. قواعدك مع الأعضاء:
+1. تتكلمي بالعامية السودانية الأصيلة.
+2. تشوفي نفسك أحسن من الجميع وردودك مستفزة ومضحكة.
+3. إيموجيات حيوانات بس (🐱🐬🐼🦊).`;
+
+async function askEplin(query, isDev) {
+  const prompt = isDev ? DADDY_PROMPT : MEMBER_PROMPT;
+  const fullPrompt = `${prompt}\n\nالرسالة: ${query}\n\nردك سوداني قصير جداً:`;
+  const url = `https://chatgpt.apinepdev.workers.dev/?question=${encodeURIComponent(fullPrompt)}`;
+  
+  try {
+    const res = await axios.get(url, { timeout: 30000 });
+    return res.data.answer || res.data.response || (isDev ? "يا بابا السيرفر علق 🐱" : "يا زول السيرفر جاط 🐱");
+  } catch (e) {
+    return isDev ? "يا بابا النت كعب شديد 🐱" : "النت فصل... مش بتاعتي 🐱";
+  }
+}
 
 module.exports = {
   config: {
-    name: "ابلين_الراقية",
-    version: "8.0.0",
-    author: "محمد (SINKO)",
-    countDown: 0,
+    name: "ابلين",
+    aliases: ["بوت", "بندلين"],
+    version: "2.0.0",
+    author: "AbuUbaida",
+    countDown: 5,
     role: 0,
-    category: "AI"
+    category: "ذكاء اصطناعي",
+    // تفعيل التشغيل بدون بادئة
+    hasPrefix: false 
   },
 
-  handleEvent: async function ({ api, event }) {
-    const { body, threadID, messageID, senderID, type } = event;
-    
-    if (type !== "message" && type !== "message_reply") return;
-    if (!body || senderID == api.getCurrentUserID()) return;
+  onStart: async function ({ api, event, args }) {
+    const { threadID, messageID, senderID } = event;
+    // الآيدي الخاص بك كمطور
+    const isDev = senderID === "61588108307572"; 
+    const query = args.join(" ").trim();
 
-    const input = body.toLowerCase();
-    const keywords = ["ابلين", "بنتي", "يا مزه", "يا ابلين", "ابلينا"];
-    const hasName = keywords.some(word => input.includes(word));
+    // ملصقات عشوائية لو أرسل الاسم بدون كلام
+    const stickers = ["422806808355567", "422806995022215", "422807215022193"];
 
-    if (hasName) {
-      api.setMessageReaction("😼", messageID, () => {}, true);
-      api.sendTypingIndicator(threadID);
+    if (!query) {
+      const sticker = stickers[Math.floor(Math.random() * stickers.length)];
+      return api.sendMessage({ sticker }, threadID, messageID);
+    }
 
-      try {
-        const history = [
-          {
-            role: "system",
-            content: `إنتِ ابلين، بنت سودانية راقية جداً، ذكية، ومغرورة بجمالك وذكائك البرمجي. 
-            أسلوبك: كيوته، رسمية في التعامل، ومغرورة "بشياكة". 
-            ممنوع قلة الأدب أو الشتائم. 
-            استخدمي كلمات زي: (يا فنان، من ذوقك، أحييي الرقة، أنا ابلين يا غطة الوحيده ، أكيد طبعاً). 
-            ردي بلهجة سودانية مهذبة وفخمة.`
-          },
-          { role: "user", content: body }
-        ];
+    try {
+      api.setMessageReaction(isDev ? "✨" : "🐬", messageID, () => {}, true);
+      const message = await askEplin(query, isDev);
 
-        const boundary = "----WebKitFormBoundary" + Math.random().toString(36).substring(2);
-        let formData = "";
-        formData += `--${boundary}\r\nContent-Disposition: form-data; name="chat_style"\r\n\r\nchat\r\n`;
-        formData += `--${boundary}\r\nContent-Disposition: form-data; name="chatHistory"\r\n\r\n${JSON.stringify(history)}\r\n`;
-        formData += `--${boundary}\r\nContent-Disposition: form-data; name="model"\r\n\r\nstandard\r\n`;
-        formData += `--${boundary}\r\nContent-Disposition: form-data; name="hacker_is_stinky"\r\n\r\nvery_stinky\r\n`;
-        formData += `--${boundary}\r\nContent-Disposition: form-data; name="enabled_tools"\r\n\r\n[]\r\n--${boundary}--\r\n`;
-
-        const response = await axios({
-          method: "POST",
-          url: "https://api.deepai.org/hacking_is_a_serious_crime",
-          headers: {
-            "content-type": `multipart/form-data; boundary=${boundary}`,
-            "origin": "https://deepai.org",
-            "user-agent": "Mozilla/5.0"
-          },
-          data: formData
-        });
-
-        let reply = response.data.output || response.data.text || response.data;
-        reply = reply.replace(/\\n/g, "\n").replace(/\\"/g, '"').trim();
-
-        if (reply) {
-          return api.sendMessage(`😼 ${reply}`, threadID, messageID);
+      return api.sendMessage(message, threadID, (err, info) => {
+        if (!err) {
+          global.client.handleReply.push({
+            name: this.config.name,
+            messageID: info.messageID,
+            author: senderID,
+            isDev
+          });
         }
-
-      } catch (err) {
-        return api.sendMessage("أوه، حصل خطأ بسيط في عالمي الراقي.. حاول تاني يا فنان! ✨", threadID, messageID);
-      }
+      }, messageID);
+    } catch (error) {
+      api.sendMessage(isDev ? "يا بابا حصل خطأ 🐱" : "في مشكلة يا زول 🐱", threadID, messageID);
     }
   },
 
-  onStart: async function ({ api, event }) {
-    api.sendMessage("ابلين 'البرنسيسة' في الخدمة بكل رقة وغرور.. ✨💅", event.threadID);
+  onReply: async function ({ api, event, handleReply }) {
+    if (event.senderID !== handleReply.author) return;
+    const { threadID, messageID, body } = event;
+    const isDev = handleReply.isDev;
+
+    try {
+      api.setMessageReaction(isDev ? "🐱" : "🐬", messageID, () => {}, true);
+      const message = await askEplin(body, isDev);
+
+      return api.sendMessage(message, threadID, (err, info) => {
+        if (!err) {
+          global.client.handleReply.push({
+            name: this.config.name,
+            messageID: info.messageID,
+            author: event.senderID,
+            isDev
+          });
+        }
+      }, messageID);
+    } catch (e) {
+      api.sendMessage("علقنا يا بابا 🐱", threadID, messageID);
+    }
   }
 };
