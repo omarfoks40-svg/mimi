@@ -1,118 +1,110 @@
-const axios = require("axios");
-const fs = require("fs-extra");
-const path = require("path");
-const { MagicAi } = require("../../func/api_funcs");
+const axios = require('axios');
+const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
 
-const DEFAULT_MODELS = [
-  { id: 27, name: "Standard", default: { cfg: 7, steps: 20, sampler_name: "euler", scheduler_name: "normal" } },
-  { id: 28, name: "Anime", default: { cfg: 7, steps: 25, sampler_name: "euler_ancestral", scheduler_name: "normal" } },
-  { id: 29, name: "Realistic", default: { cfg: 7, steps: 30, sampler_name: "dpmpp_2m", scheduler_name: "karras" } },
-];
+// إعدادات الموديلات
+const models = [{
+    id: 27,
+    name: "Flux1.1 Pro",
+    default: { cfg: 3.5, steps: 25, sampler_name: "euler", scheduler_name: "simple" }
+}];
 
-const RATIOS = { '1': 0, '2': 1, '3': 2, '4': 3 };
-const RATIO_NAMES = { '0': '1:1', '1': '9:16', '2': '16:9', '3': '3:4' };
+class MagicAi {
+    constructor(d_id, models) {
+        this.d_id = d_id || this.GenerateID();
+        this.Token = null;
+        this.baseUrl = 'https://api.magicaiimage.top';
+        this.models = models;
+    }
+
+    GenerateID() {
+        return crypto.randomBytes(8).toString('hex');
+    }
+
+    Encrypt(OData) {
+        const key = Buffer.from([0, 0, 0, 109, 97, 103, 105, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+        const iv = Buffer.alloc(16, 0);
+        const cipher = crypto.createCipheriv("aes-128-cbc", key, iv);
+        return Buffer.concat([cipher.update(JSON.stringify(OData), "utf8"), cipher.final()]).toString("base64");
+    }
+
+    Decrypt(Edata) {
+        const key = Buffer.from([0, 0, 0, 109, 97, 103, 105, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+        const iv = Buffer.alloc(16, 0);
+        const decipher = crypto.createDecipheriv("aes-128-cbc", key, iv);
+        const decrypted = Buffer.concat([decipher.update(Buffer.from(Edata, "base64")), decipher.final()]);
+        return JSON.parse(decrypted.toString("utf8"));
+    }
+
+    async Requester(endpoint, param, token = this.Token) {
+        const data = {
+            data: this.Encrypt({
+                param: param,
+                header: { token: token || "", "d-id": this.d_id, version: "3.1.0", "app-code": "magic" }
+            })
+        };
+        const response = await axios.post(`${this.baseUrl}${endpoint}`, data, {
+            headers: { "User-Agent": "okhttp/4.12.0", "Content-Type": "application/json" }
+        });
+        return this.Decrypt(response.data.data);
+    }
+
+    async Generate(Prompt) {
+        const login = await this.Requester('/app/login', { platform: 3, d_id: this.d_id, lang: 'en' }, '');
+        this.Token = login.data.token;
+        const task = await this.Requester('/app/task/text_to_image/post', {
+            positive_prompt: Prompt, model_id: 27, quality_mode: 0, proportion: 0, batch_size: 1, cfg: 3.5, steps: 25, random_seed: Math.floor(Math.random() * 1e15), sampler_name: "euler", scheduler: "simple"
+        });
+        const taskId = task.data.task.id;
+        
+        // الانتظار حتى اكتمال الصورة
+        let result;
+        while (true) {
+            result = await this.Requester('/app/task/image/list/get', { task_id: taskId });
+            if (result.data && result.data[0]) break;
+            await new Promise(res => setTimeout(res, 3000));
+        }
+        return result.data[0];
+    }
+}
 
 module.exports = {
-  config: {
-    name: 'ماجيك',
-    aliases: ['magic', 'magicai'],
-    version: '1.0.0',
-    author: 'ابلين',
-    countDown: 30,
-    role: 0,
-    description: 'توليد صور بـ MagicAI بموديلات متعددة',
-    category: 'ai',
-    guide: { ar: '{pn} [0|1|2] [النسبة 1-4] [الوصف]\n0=عادي 1=أنمي 2=واقعي | 1=مربع 2=طولي 3=عرضي 4=3:4' }
-  },
+    config: {
+        name: "ماجيك",
+        aliases: ["magic", "تخيل"],
+        version: "1.0.0",
+        author: "Sinko",
+        countDown: 15,
+        role: 0,
+        category: "ai"
+    },
 
-  onStart: async function({ api, event, args }) {
-    const { threadID, messageID } = event;
+    onStart: async function ({ api, event, args }) {
+        const { threadID, messageID } = event;
+        const prompt = args.join(" ");
+        if (!prompt) return api.sendMessage("✾ ┇ يرجى كتابة وصف الصورة (بالإنجليزي أفضل).", threadID, messageID);
 
-    if (!args[0]) {
-      return api.sendMessage(
-        `⏣────── ✾ ⌬ ✾ ──────⏣\n` +
-        `✾ ┇\n` +
-        `✾ ┇ ⏣ ⟬ MagicAI ⟭\n` +
-        `✾ ┇ ◍ الموديلات:\n` +
-        `✾ ┇   0 = عادي (Standard)\n` +
-        `✾ ┇   1 = أنمي (Anime)\n` +
-        `✾ ┇   2 = واقعي (Realistic)\n` +
-        `✾ ┇ ◍ النسبة:\n` +
-        `✾ ┇   1=1:1  2=9:16  3=16:9  4=3:4\n` +
-        `✾ ┇ ◍ مثال: ماجيك 1 1 cute anime girl\n` +
-        `✾ ┇\n` +
-        `⏣────── ✾ ⌬ ✾ ──────⏣`,
-        threadID, messageID
-      );
+        try {
+            api.setMessageReaction("⏳", messageID, () => {}, true);
+            const magic = new MagicAi(null, models);
+            const result = await magic.Generate(prompt);
+
+            const cachePath = path.join(__dirname, 'cache', `${Date.now()}.jpg`);
+            if (!fs.existsSync(path.join(__dirname, 'cache'))) fs.mkdirSync(path.join(__dirname, 'cache'));
+
+            const imgRes = await axios.get(result.url, { responseType: 'arraybuffer' });
+            fs.writeFileSync(cachePath, Buffer.from(imgRes.data));
+
+            await api.sendMessage({
+                body: "✅ ┇ تم توليد صورتك بواسطة Flux1.1 Pro",
+                attachment: fs.createReadStream(cachePath)
+            }, threadID, () => fs.unlinkSync(cachePath), messageID);
+            
+            api.setMessageReaction("🎨", messageID, () => {}, true);
+        } catch (e) {
+            console.error(e);
+            api.sendMessage("❌ ┇ فشل السيرفر في توليد الصورة.", threadID, messageID);
+        }
     }
-
-    const modelNum = parseInt(args[0]);
-    const ratioKey = args[1];
-    const prompt = args.slice(2).join(" ").trim();
-
-    if (isNaN(modelNum) || modelNum < 0 || modelNum >= DEFAULT_MODELS.length) {
-      return api.sendMessage(`❌ | الموديل يجب أن يكون 0 أو 1 أو 2`, threadID, messageID);
-    }
-
-    if (!RATIOS.hasOwnProperty(ratioKey)) {
-      return api.sendMessage(`❌ | النسبة يجب أن تكون 1 أو 2 أو 3 أو 4`, threadID, messageID);
-    }
-
-    const selectedModel = DEFAULT_MODELS[modelNum];
-    const ratioNum = RATIOS[ratioKey];
-    const ratioName = RATIO_NAMES[ratioNum];
-
-    api.setMessageReaction("⏳", messageID, () => {}, true);
-    api.sendMessage(
-      `⏣────── ✾ ⌬ ✾ ──────⏣\n` +
-      `✾ ┇ ⏣ ⟬ MagicAI ⟭\n` +
-      `✾ ┇ ◍ الموديل: ${selectedModel.name}\n` +
-      `✾ ┇ ◍ النسبة: ${ratioName}\n` +
-      `✾ ┇ ◍ ${prompt ? `الوصف: ${prompt}` : 'وصف عشوائي 🎲'}\n` +
-      `✾ ┇ ◍ جاري التوليد... ⏳\n` +
-      `⏣────── ✾ ⌬ ✾ ──────⏣`,
-      threadID, messageID
-    );
-
-    try {
-      const magic = new MagicAi(null, DEFAULT_MODELS);
-      const result = await magic.Generate(
-        prompt || null,
-        selectedModel.id,
-        ratioNum,
-        '',
-        modelNum
-      );
-
-      if (!result) {
-        api.setMessageReaction("❌", messageID, () => {}, true);
-        return api.sendMessage(`❌ | فشل التوليد`, threadID, messageID);
-      }
-
-      const imageUrl = result.image_path || result.url || result.image_url;
-      if (!imageUrl) {
-        api.setMessageReaction("❌", messageID, () => {}, true);
-        return api.sendMessage(`❌ | لم يتم الحصول على الصورة`, threadID, messageID);
-      }
-
-      const imgResponse = await axios.get(imageUrl, { responseType: 'arraybuffer', timeout: 30000 });
-      const cacheDir = path.join(__dirname, "cache");
-      if (!fs.existsSync(cacheDir)) fs.mkdirSync(cacheDir, { recursive: true });
-      const imgPath = path.join(cacheDir, `magic_${Date.now()}.jpg`);
-      fs.writeFileSync(imgPath, imgResponse.data);
-
-      await api.sendMessage({
-        body: `⏣────── ✾ ⌬ ✾ ──────⏣\n✾ ┇ ✅ تم التوليد!\n✾ ┇ ◍ الموديل: ${selectedModel.name}\n✾ ┇ ◍ النسبة: ${ratioName}\n⏣────── ✾ ⌬ ✾ ──────⏣`,
-        attachment: fs.createReadStream(imgPath)
-      }, threadID, () => {
-        try { fs.unlinkSync(imgPath); } catch (e) {}
-      }, messageID);
-
-      api.setMessageReaction("✅", messageID, () => {}, true);
-
-    } catch (error) {
-      api.setMessageReaction("❌", messageID, () => {}, true);
-      api.sendMessage(`❌ | خطأ: ${error.message}`, threadID, messageID);
-    }
-  }
 };
