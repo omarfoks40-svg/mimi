@@ -7,7 +7,7 @@ module.exports = {
     author: "سينكو 𓆩☆𓆪",
     countDown: 5,
     role: 0,
-    category: "الوسئط",
+    category: "media",
     description: "جلب معلومات سريعة وموثوقة من ويكيبيديا العربية.",
     aliases: ["wiki", "ويكي"]
   },
