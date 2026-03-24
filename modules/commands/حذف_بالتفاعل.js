@@ -1,7 +1,7 @@
 module.exports = {
   config: {
-    name: "حذف_تلقائي",
-    version: "2.0.0",
+    name: "حذف",
+    version: "2.5.0",
     author: "Cenko",
     countDown: 0,
     role: 0,
@@ -9,23 +9,24 @@ module.exports = {
   },
 
   handleEvent: async function ({ api, event }) {
-    // مراقبة أحداث التفاعل (reaction)
-    if (event.type === "message_reaction") {
-      const { reaction, messageID, userID } = event;
+    // ركز هنا: بنتحقق من نوع الحدث إذا كان تفاعل
+    if (event && event.type === "message_reaction") {
+      const { reaction, messageID } = event;
 
-      // إذا كان التفاعل هو ✨
+      // لو التفاعل ✨
       if (reaction === "✨") {
-        return api.unsendMessage(messageID, (err) => {
-          if (err) {
-            console.log("⚠️ فشل الحذف: قد تكون الرسالة قديمة أو البوت ليس أدمن");
-          }
-        });
+        try {
+          return api.unsendMessage(messageID);
+        } catch (e) {
+          // لو في مشكلة في الصلاحيات أو الرسالة قديمة
+          console.log("⌬ فشل الحذف ♢");
+        }
       }
     }
   },
 
   onStart: async function ({ api, event }) {
-    // فقط للتأكد أن الكود تم تحميله
-    console.log("✅ نظام الحذف عبر ✨ شغال الآن!");
+    // دي رسالة تأكيد ليك إنت عشان تعرف إنو الكود "ركب" صح
+    api.sendMessage("●───── ⌬ ─────●\n┇ ⦿ نـظـام الـحـذف الـسـريـع 💎\n┇ ⦿ تـفـاعـل بـ ✨ لـلـحـذف\n●───── ⌬ ─────●", event.threadID);
   }
 };
