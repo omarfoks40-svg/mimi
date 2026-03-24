@@ -1,28 +1,31 @@
 module.exports = {
   config: {
-    name: "حذف",
-    version: "1.0.5",
+    name: "حذف_تلقائي",
+    version: "2.0.0",
     author: "Cenko",
     countDown: 0,
     role: 0,
     category: "system"
   },
 
-  handleReaction: async function ({ api, event, Users }) {
-    const { reaction, messageID, userID } = event;
+  handleEvent: async function ({ api, event }) {
+    // مراقبة أحداث التفاعل (reaction)
+    if (event.type === "message_reaction") {
+      const { reaction, messageID, userID } = event;
 
-    // التحقق من الإيموجي
-    if (reaction === "✨") {
-      // إرسال سجل للكونسول للتأكد أن البوت استلم التفاعل
-      console.log(`${userID}`);
-
-      return api.unsendMessage(messageID, (err) => {
-        if (err) {
-            console.error("❌ فشل الحذف: قد لا يملك البوت صلاحية أو الرسالة قديمة جداً.");
-        } else {
-            console.log("✅ تم حذف الرسالة بنجاح.");
-        }
-      });
+      // إذا كان التفاعل هو ✨
+      if (reaction === "✨") {
+        return api.unsendMessage(messageID, (err) => {
+          if (err) {
+            console.log("⚠️ فشل الحذف: قد تكون الرسالة قديمة أو البوت ليس أدمن");
+          }
+        });
+      }
     }
+  },
+
+  onStart: async function ({ api, event }) {
+    // فقط للتأكد أن الكود تم تحميله
+    console.log("✅ نظام الحذف عبر ✨ شغال الآن!");
   }
 };
