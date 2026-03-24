@@ -12,7 +12,7 @@ module.exports = {
     prefix: true,
     groupAdminOnly: false,
     description: 'أبحث عن الصور في بنترست',
-    category: 'ai',
+    category: 'media',
     guide: {
       en: '{pn} <الكلمة المراد البحث عنها> -<عدد الصور>'
     },
