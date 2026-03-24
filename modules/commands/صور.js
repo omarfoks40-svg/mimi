@@ -9,7 +9,7 @@ module.exports = {
     author: "HUSSEIN YACOUBI",
     countDown: 10,
     role: 0,
-    category: "الوسئط",
+    category: "media",
     description: "ابحث عن صور أنمي وفئات مختلفة.",
     aliases: ["بين", "بنت"]
   },
