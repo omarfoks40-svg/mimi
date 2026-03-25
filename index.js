@@ -1,10 +1,21 @@
 const { spawn } = require('child_process');
+const express = require('express'); // مكتبة الـ Uptime
 const { log } = require('./logger/logger');
 
+const app = express();
+const port = process.env.PORT || 3000;
+
+// --- نظام البقاء حياً (Uptime) ---
+app.get('/', (req, res) => {
+  res.send('<h3>𝙰𝚙𝚕𝚒𝚗 𝙱𝚘𝚝 𝙾𝚏 𝚃𝚒𝚖𝚎 𝚒𝚜 𝙰𝚕𝚒𝚟𝚎! 🚀</h3>');
+});
+
+app.listen(port, () => {
+  log('info', `Uptime server is active on port ${port}`);
+});
+
 let botProcess;
-let restartCount = 0;
-const MAX_RESTARTS = 5; 
-const RESTART_DELAY = 5000;
+const RESTART_DELAY = 5000; 
 
 function startBot() {
   if (botProcess) {
@@ -12,37 +23,31 @@ function startBot() {
     botProcess.kill(); 
   }
 
-  log('info', 'Starting bot...');
-  botProcess = spawn('node', ['main.js'], { stdio: 'inherit' });
+  log('info', 'Starting main.js process...');
+  
+  // هنا التعديل المهم: الـ index بيشغل الـ main
+  botProcess = spawn('node', ['main.js'], { 
+    cwd: __dirname, 
+    stdio: 'inherit' 
+  });
 
   botProcess.on('close', (code) => {
-    log('info', `Bot process exited with code ${code}`);
-    if (code === 2) { 
-      log('info', 'Bot is restarting...');
-      setTimeout(startBot, RESTART_DELAY);
-    } else if (code !== 0 && restartCount < MAX_RESTARTS) { 
-      restartCount++;
-      log('warn', `Restarting bot in ${RESTART_DELAY / 1000} seconds... (Attempt ${restartCount}/${MAX_RESTARTS})`);
-      setTimeout(startBot, RESTART_DELAY);
-    } else if (restartCount >= MAX_RESTARTS) {
-      log('error', `Bot stopped after ${MAX_RESTARTS} restarts. Please check for errors.`);
-    } else {
-      log('info', 'Bot exited normally.');
-    }
+    log('warn', `Bot (main.js) exited with code ${code}.`);
+    log('info', `Restarting in ${RESTART_DELAY / 1000} seconds...`);
+    
+    // إعادة تشغيل لانهائية - عشان البوت ما يوقف نهائياً
+    setTimeout(startBot, RESTART_DELAY);
   });
 
   botProcess.on('error', (err) => {
-    log('error', `Failed to start bot process: ${err.message}`);
+    log('error', `Failed to start main.js: ${err.message}`);
+    setTimeout(startBot, RESTART_DELAY);
   });
 }
 
-
 startBot();
 
-process.on('SIGINT', () => {
-  log('info', 'Ctrl+C detected. Stopping bot...');
-  if (botProcess) {
-    botProcess.kill();
-  }
-  process.exit(0);
+// حماية من الأخطاء العشوائية اللي بتقفل السيرفر
+process.on('unhandledRejection', (err) => {
+    log('error', `Critical Error: ${err.message}`);
 });
