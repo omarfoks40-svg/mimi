@@ -1,4 +1,4 @@
-const { spawn } = require('child_process');
+Const { spawn } = require('child_process');
 const { log } = require('./logger/logger');
 
 let botProcess;
@@ -22,7 +22,7 @@ function startBot() {
       setTimeout(startBot, RESTART_DELAY);
     } else if (code !== 0 && restartCount < MAX_RESTARTS) { 
       restartCount++;
-      log('warn', `تمت اعادت تشغيل ابلين  ⏳ ${RESTART_DELAY / 1000} ثانيه... (Attempt ${restartCount}/${MAX_RESTARTS})`);
+      log('warn', `Restarting bot in ${RESTART_DELAY / 1000} seconds... (Attempt ${restartCount}/${MAX_RESTARTS})`);
       setTimeout(startBot, RESTART_DELAY);
     } else if (restartCount >= MAX_RESTARTS) {
       log('error', `Bot stopped after ${MAX_RESTARTS} restarts. Please check for errors.`);
