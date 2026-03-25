@@ -22,7 +22,7 @@ module.exports = {
       const prefix = global.client.config.prefix || '/';
 
       // تغيير الكنية (تعديل الزخرفة فقط للأقواس المجهرية والعمود المقطع والوردة خارجاً)
-      const shortNickname = `✅ ┇ ❨ ${prefix} ❩ 𝑨𝒑𝒍𝒊𝒏 𝒕𝒂𝒚𝒎 𝒐𝒇 𝒑𝒐𝒕 `;
+      const shortNickname = `⏳┇ ❨ ${prefix} ❩ 𝙰𝚙𝚕𝚒𝚗 𝙱𝚘𝚝 𝙾𝚏 𝚃𝚒𝚖𝚎 `;
       api.changeNickname(shortNickname, event.threadID, botID);
 
       // زخرفة الترحيب (تطبيق النمط الملكي الجديد: الزهور خارج الأعمدة)
