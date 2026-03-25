@@ -8,7 +8,6 @@ function Sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-// الكلاس المسؤول عن الربط مع سيرفر MagicAI (بدون تغيير في المنطق)
 class MagicAi {
     constructor(d_id, models) {
         this.d_id = d_id || this.GenerateID();
@@ -88,15 +87,18 @@ class MagicAi {
         
         await this.Requester('/app/task/price/quick/get', {});
         
-        // حلقة فحص الحالة
         let isDone = false;
-        while (!isDone) {
+        let attempts = 0;
+        while (!isDone && attempts < 20) { // حد أقصى للمحاولات عشان ما يعلق للأبد
             const status = await this.Requester('/app/task/waiting/list/get', { page: 1, size: 100 });
             if (!status.data || !status.data[0] || status.data[0].progress.overall_percentage === "100.00") isDone = true;
-            else await Sleep(3000);
+            else {
+                await Sleep(3000);
+                attempts++;
+            }
         }
 
-        await Sleep(5000);
+        await Sleep(2000);
         const final = await this.Requester('/app/task/image/list/get', { task_id: TaskID });
         return final.data[0];
     }
@@ -108,12 +110,11 @@ const models = [{
     default: { cfg: 3.5, steps: 25, sampler_name: "euler", scheduler_name: "simple" }
 }];
 
-// إعدادات البنية الخاصة بك (Kenji Cloud)
 module.exports = {
     config: {
         name: "ماجيك",
         aliases: ["magic"],
-        version: "3.0.0",
+        version: "3.5.0", // تحديث النسخة
         author: "Sinko",
         countDown: 15,
         role: 0,
@@ -126,32 +127,46 @@ module.exports = {
 
         if (!prompt) return api.sendMessage("✾ ┇ يرجى كتابة وصف الصورة.", threadID, messageID);
 
+        // تحديد مسار الكاش بشكل آمن
+        const cacheDir = path.join(__dirname, 'cache');
+        const fileName = `magic_${Date.now()}.jpg`;
+        const cachePath = path.join(cacheDir, fileName);
+
         try {
             api.setMessageReaction("⏳", messageID, () => {}, true);
-            api.sendMessage("", threadID, messageID);
 
             const magicAi = new MagicAi(null, models);
             const result = await magicAi.Generate(prompt, 27, 0, "", 0);
 
-            if (!result || !result.url) throw new Error("السيرفر ما رجع صورة.");
+            if (!result || !result.url) throw new Error("السيرفر مشغول حالياً، جرب لاحقاً.");
 
-            const cachePath = path.join(__dirname, 'cache', `magic_${Date.now()}.jpg`);
-            await fs.ensureDir(path.join(__dirname, 'cache'));
+            await fs.ensureDir(cacheDir);
 
             const response = await axios.get(result.url, { responseType: 'arraybuffer' });
             await fs.writeFile(cachePath, Buffer.from(response.data));
 
+            // إرسال الصورة للفيسبوك
             await api.sendMessage({
-                body: "✅ ┇ تم التوليد بواسطة Flux 1.1 Pro",
+                body: "✅ ┇ تم التوليد بنجاح بواسطة 𝙰𝚙𝚕𝚒𝚗 𝙱𝚘𝚝",
                 attachment: fs.createReadStream(cachePath)
-            }, threadID, () => fs.unlinkSync(cachePath), messageID);
+            }, threadID, messageID);
 
             api.setMessageReaction("✅", messageID, () => {}, true);
 
         } catch (e) {
-            console.error(e);
+            console.error("Error in MagicAI command:", e);
             api.sendMessage(`❌ ┇ فشل التوليد: ${e.message}`, threadID, messageID);
             api.setMessageReaction("❌", messageID, () => {}, true);
+        } finally {
+            // "المكنسة الذكية" - بتمسح الملف بعد 7 ثواني لضمان الرفع التام
+            setTimeout(() => {
+                if (fs.existsSync(cachePath)) {
+                    fs.unlink(cachePath, (err) => {
+                        if (err) console.error(`[Cleaner] فشل حذف: ${fileName}`, err);
+                        else console.log(`[Cleaner] تم تنظيف الكاش: ${fileName} 🧹`);
+                    });
+                }
+            }, 7000);
         }
     }
 };
