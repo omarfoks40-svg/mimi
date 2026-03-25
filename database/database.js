@@ -77,7 +77,7 @@ const Threads = {
         threadName,
         adminIDs: [],
         memberCount: 0,
-        settings: { welcomeMessage: true, prefix: '!' },
+        settings: { welcomeMessage: true, prefix: '' },
       };
       saveData(threadsPath, threads);
     }
