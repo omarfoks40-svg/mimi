@@ -20,7 +20,7 @@ module.exports = {
     author: "SINKO",
     countDown: 10,
     role: 0,
-    category: "بحث"
+    category: "الوسئط"
   },
 
   onStart: async function ({ api, event, args }) {
