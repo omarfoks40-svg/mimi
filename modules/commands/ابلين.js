@@ -4,9 +4,9 @@ module.exports = {
   config: {
     name: "ابلين",
     aliases: ["بندلين", "بوت"],
-    version: "5.0.0",
+    version: "6.0.0",
     author: "SINKO",
-    description: "دردشة ابلين بنظام سيرفر DeepAI المستقر",
+    description: "ابلين السودانية (ضد اللغة المصرية)",
     countDown: 5,
     prefix: false,
     category: "ai",
@@ -15,7 +15,7 @@ module.exports = {
 
   onStart: async function ({ api, event, args }) {
     const { threadID, messageID, senderID } = event;
-    const developerID = "61588108307572"; // أيدي البابا سينكو
+    const developerID = "61588108307572"; 
     const isDev = senderID === developerID;
     const query = args.join(" ").trim();
 
@@ -24,7 +24,7 @@ module.exports = {
       return api.sendMessage({ sticker: stickers[Math.floor(Math.random() * stickers.length)] }, threadID, messageID);
     }
 
-    api.setMessageReaction(isDev ? "🐱" : "🐬", messageID, () => {}, true);
+    api.setMessageReaction(isDev ? "✨" : "🐬", messageID, () => {}, true);
 
     try {
       const response = await askDeepAI(query, isDev);
@@ -39,7 +39,7 @@ module.exports = {
         }
       }, messageID);
     } catch (error) {
-      return api.sendMessage(isDev ? "يا بابا السيرفر ده كمان غلبني 🐱" : "مشغولة.. ما وقتك 🐱", threadID, messageID);
+      return api.sendMessage(isDev ? "يا بابا السيرفر ده راسو كبر 🐱" : "مشغولة.. ما وقتك 🐱", threadID, messageID);
     }
   },
 
@@ -47,7 +47,7 @@ module.exports = {
     const { body, threadID, messageID, senderID } = event;
     const isDev = senderID === "61588108307572";
 
-    api.setMessageReaction(isDev ? "🐱" : "🐬", messageID, () => {}, true);
+    api.setMessageReaction(isDev ? "✨" : "🐬", messageID, () => {}, true);
 
     try {
       const response = await askDeepAI(body, isDev);
@@ -62,20 +62,29 @@ module.exports = {
         }
       }, messageID);
     } catch (error) {
-      return api.sendMessage("حصلت لخبطة في الرد.. 🐱", threadID, messageID);
+      return api.sendMessage("حصلت لخبطة.. 🐱", threadID, messageID);
     }
   }
 };
 
-// الدالة الأساسية لاستدعاء DeepAI (الابل الجديد)
 async function askDeepAI(query, isDev) {
-  const prompt = isDev 
-    ? `أنتِ "ابلين"، بنت المطور سينكو المدللة. لغتك سودانية عامية. تناديه "يا بابا". دلوعة ومحبة ومرحة. استخدمي إيموجيات الحيوانات (🐱🐬🐼). ردي في جملتين.`
-    : `أنتِ "ابلين"، مغرورة جداً وشايفة نفسك أحسن من الأعضاء. لغتك سودانية عامية (زول، شنو). ردودك مستفزة ومضحكة. استخدمي إيموجيات الحيوانات (🐱🐬🐼). ردي في جملتين.`;
+  // القواعد الذهبية لمنع المصري والفصحى
+  const sudaneseRules = `
+  - لغتك هي العامية السودانية فقط (لغة الخرطوم والمدن السودانية).
+  - ممنوع نهائياً كلمات مثل: "إيه"، "عشان"، "أوي"، "ده"، "بتاع"، "إزيك".
+  - استخدم بدلها: "شنو"، "عشان كدة"، "شديد"، "دا"، "حقت"، "كيفنك".
+  - نادِ المطور بـ "يا بابا" لو كان هو السائل.
+  - كوني مغرورة جداً مع الآخرين بلهجة سودانية حادة.
+  `;
 
+  const prompt = isDev 
+    ? `أنتِ "ابلين"، بنت المطور سينكو المدللة. ${sudaneseRules} تناديه "يا بابا". دلوعة ومرحة. استخدمي إيموجيات الحيوانات (🐱🐬). ردي باختصار شديد.`
+    : `أنتِ "ابلين"، متغطرسة ومغرورة. ${sudaneseRules} شايفة نفسك فوق الكل. استخدمي إيموجيات الحيوانات (🐱🐬). ردي باختصار ومستفز.`;
+
+  // إجبار الـ API على البدء بكلمة سودانية لضبط النبرة
   const history = [
     { role: "system", content: prompt },
-    { role: "user", content: query }
+    { role: "user", content: `(تذكري: تحدثي بالسودانية فقط) - السؤال: ${query}` }
   ];
 
   const boundary = "----WebKitFormBoundary" + Math.random().toString(36).substring(2);
@@ -97,9 +106,12 @@ async function askDeepAI(query, isDev) {
     });
 
     let reply = res.data.output || res.data.text || res.data;
-    return reply.trim() || (isDev ? "يا بابا ما لقيت رد 🐱" : "ما دايرة أرد 🐱");
+    
+    // فلتر إضافي لو الرد طلع فيه كلمات مصرية (محاولة أخيرة)
+    reply = reply.replace(/ده/g, "دا").replace(/عشان/g, "عشان كدة").replace(/إيه/g, "شنو");
+    
+    return reply.trim();
   } catch (e) {
-    console.error("DeepAI Error:", e.message);
     throw e;
   }
 }
