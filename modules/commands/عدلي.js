@@ -6,11 +6,11 @@ const crypto = require("crypto");
 module.exports = {
   config: {
     name: 'عدلي',
-    aliases: ['sd', 'بنين'],
-    version: '3.5.0',
+    aliases: ['sd', 'ظبطي'],
+    version: '4.0.0',
     author: 'SINKO',
-    description: 'توليد صور بنظام الحماية المستقرة من الفصل',
-    countDown: 15, // زيادة الأمان لراندر
+    description: 'تعديل الصور بالذكاء الاصطناعي (نسخة ضد الفصل)',
+    countDown: 10,
     prefix: true,
     category: 'ai',
     adminOnly: false 
@@ -20,12 +20,13 @@ module.exports = {
     const { threadID, messageID, senderID } = event;
     const developerID = "61588108307572"; 
 
+    // التأكد من المطور
     if (senderID !== developerID) {
-      return api.setMessageReaction("⭕", messageID, () => {}, true);
+      return api.setMessageReaction("🚯", messageID, () => {}, true);
     }
 
     const prompt = args.join(" ");
-    if (!prompt) return api.sendMessage('⚠️ يرجى كتابة وصف للصورة.', threadID, messageID);
+    if (!prompt) return api.sendMessage('⚠️ يرجى كتابة وصف للتعديل (مثلاً: بنين شعرها احمر).', threadID, messageID);
 
     let imageUrl;
     if (event.type === "message_reply") {
@@ -41,24 +42,24 @@ module.exports = {
     api.setMessageReaction("⏳", messageID, () => {}, true);
 
     const cacheDir = path.join(__dirname, "cache");
-    const fileName = `sd_${crypto.randomBytes(4).toString('hex')}.png`;
-    const cachePath = path.join(cacheDir, fileName);
+    const filePath = path.join(cacheDir, `edit_${crypto.randomBytes(4).toString('hex')}.png`);
 
     try {
       await fs.ensureDir(cacheDir);
 
+      // رابط السيرفر
       const apiUrl = `https://uncensored-sd.onrender.com/api/sd?prompt=${encodeURIComponent(prompt)}&imageUrl=${encodeURIComponent(imageUrl)}`;
 
-      // طلب الصورة مع مهلة زمنية صارمة لعدم قتل البوت
+      // زيادة مهلة الانتظار لـ 3 دقائق (180 ثانية) عشان السيرفر البطيء
       const response = await axios({
         method: 'get',
         url: apiUrl,
         responseType: 'stream',
-        timeout: 90000, // 90 ثانية كحد أقصى
-        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
+        timeout: 180000, 
+        headers: { 'User-Agent': 'Mozilla/5.0' }
       });
 
-      const writer = fs.createWriteStream(cachePath);
+      const writer = fs.createWriteStream(filePath);
       response.data.pipe(writer);
 
       await new Promise((resolve, reject) => {
@@ -66,26 +67,24 @@ module.exports = {
         writer.on('error', reject);
       });
 
-      const messageBody = `✨ نـتـيـجـة الـتـولـيـد ✨\n\n📝 الـوصـف : ${prompt}\n\n✅ تـم الـتـنـفـيذ بـنـجـاح`;
-
-      // إرسال النتيجة مع تنظيف الذاكرة
+      // إرسال النتيجة
       return api.sendMessage({
-        body: messageBody,
-        attachment: fs.createReadStream(cachePath)
+        body: `✅ تم التعديل بنجاح!\n📝 الوصف: ${prompt}`,
+        attachment: fs.createReadStream(filePath)
       }, threadID, () => {
         api.setMessageReaction("✅", messageID, () => {}, true);
-        if (fs.existsSync(cachePath)) fs.unlinkSync(cachePath);
+        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
       }, messageID);
 
     } catch (error) {
       console.error('SD Error:', error.message);
       api.setMessageReaction("❌", messageID, () => {}, true);
-      if (fs.existsSync(cachePath)) fs.unlinkSync(cachePath);
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+
+      let msg = "❌ فشل في تعديل الصورة، السيرفر عليه ضغط.";
+      if (error.code === 'ECONNABORTED') msg = "⚠️ السيرفر بطيء جداً وما رد في الوقت المناسب، جرب تاني.";
       
-      let errorMsg = "❌ فشل في معالجة الصورة: السيرفر مشغول حالياً.";
-      if (error.code === 'ECONNABORTED') errorMsg = "⚠️ انتهت مهلة الطلب، السيرفر بطيء جداً.";
-      
-      return api.sendMessage(errorMsg, threadID, messageID);
+      return api.sendMessage(msg, threadID, messageID);
     }
   },
 };
