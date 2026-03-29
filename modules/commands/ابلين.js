@@ -3,10 +3,10 @@ const axios = require("axios");
 module.exports = {
   config: {
     name: "ابلين",
-    aliases: ["ايلين", "بنتي", "بوت"],
-    version: "3.0.0",
+    aliases: ["بندلين", "بوت"],
+    version: "5.0.0",
     author: "SINKO",
-    description: "الدردشة مع ابلين (شخصية مزدوجة سودانية)",
+    description: "دردشة ابلين بنظام سيرفر DeepAI المستقر",
     countDown: 5,
     prefix: false,
     category: "ai",
@@ -15,27 +15,21 @@ module.exports = {
 
   onStart: async function ({ api, event, args }) {
     const { threadID, messageID, senderID } = event;
-    const developerID = "61588108307572"; // أيدي البابا (سينكو)
+    const developerID = "61588108307572"; // أيدي البابا سينكو
     const isDev = senderID === developerID;
-
     const query = args.join(" ").trim();
 
-    // ملصقات عشوائية (لو ناديت الاسم بدون كلام)
-    const stickers = ["422806808355567", "422806995022215", "422807215022193", "422807365022178"];
     if (!query) {
-      const sticker = stickers[Math.floor(Math.random() * stickers.length)];
-      return api.sendMessage({ sticker }, threadID, messageID);
+      const stickers = ["422806808355567", "422806995022215", "422807215022193"];
+      return api.sendMessage({ sticker: stickers[Math.floor(Math.random() * stickers.length)] }, threadID, messageID);
     }
 
-    // تفاعل أولي حسب الشخصية
-    api.setMessageReaction(isDev ? "✨" : "🐬", messageID, () => {}, true);
+    api.setMessageReaction(isDev ? "🐱" : "🐬", messageID, () => {}, true);
 
     try {
-      const response = await askAI(query, isDev);
-      
+      const response = await askDeepAI(query, isDev);
       return api.sendMessage(response, threadID, (err, info) => {
         if (!err) {
-          // تسجيل الرد للمتابعة (Reply)
           global.client.handleReply.push({
             name: this.config.name,
             messageID: info.messageID,
@@ -44,23 +38,19 @@ module.exports = {
           });
         }
       }, messageID);
-
     } catch (error) {
-      console.error(error);
-      const errMsg = isDev ? "يا بابا السيرفر تعبان شوية 🐱 سامحني" : "يا زول السيرفر وقف... مش أنا 🐱";
-      return api.sendMessage(errMsg, threadID, messageID);
+      return api.sendMessage(isDev ? "يا بابا السيرفر ده كمان غلبني 🐱" : "مشغولة.. ما وقتك 🐱", threadID, messageID);
     }
   },
 
-  // نظام الرد المستمر لما حد يعمل Reply على رسالة البوت
   onReply: async function ({ api, event, handleReply }) {
     const { body, threadID, messageID, senderID } = event;
     const isDev = senderID === "61588108307572";
 
-    api.setMessageReaction(isDev ? "✨" : "🐬", messageID, () => {}, true);
+    api.setMessageReaction(isDev ? "🐱" : "🐬", messageID, () => {}, true);
 
     try {
-      const response = await askAI(body, isDev);
+      const response = await askDeepAI(body, isDev);
       return api.sendMessage(response, threadID, (err, info) => {
         if (!err) {
           global.client.handleReply.push({
@@ -72,26 +62,44 @@ module.exports = {
         }
       }, messageID);
     } catch (error) {
-      return api.sendMessage(isDev ? "يا بابا حصل خطأ 🐱" : "في مشكلة.. فوتني 🐱", threadID, messageID);
+      return api.sendMessage("حصلت لخبطة في الرد.. 🐱", threadID, messageID);
     }
   }
 };
 
-// دالة جلب الرد من الـ API (Sandip API المستقر)
-async function askAI(query, isDev) {
+// الدالة الأساسية لاستدعاء DeepAI (الابل الجديد)
+async function askDeepAI(query, isDev) {
   const prompt = isDev 
-    ? `أنتِ "ابلين"، بنت المطور المدللة. تنادي المطور "يا بابا" أو "حبيبي بابا". لغتك سودانية عامية أصيلة. دلوعة ومرحة جداً ومحبة. استخدمي إيموجيات الحيوانات فقط (🐱🐬🐼🦊🐧).`
-    : `أنتِ "ابلين"، متغطرسة ومغرورة جداً وشايفة نفسك أحسن من الأعضاء. لغتك سودانية عامية أصيلة (شنو، زول، شديد). ردودك مستفزة ومضحكة. استخدمي إيموجيات الحيوانات فقط (🐱🐬🐼🦊🐧).`;
+    ? `أنتِ "ابلين"، بنت المطور سينكو المدللة. لغتك سودانية عامية. تناديه "يا بابا". دلوعة ومحبة ومرحة. استخدمي إيموجيات الحيوانات (🐱🐬🐼). ردي في جملتين.`
+    : `أنتِ "ابلين"، مغرورة جداً وشايفة نفسك أحسن من الأعضاء. لغتك سودانية عامية (زول، شنو). ردودك مستفزة ومضحكة. استخدمي إيموجيات الحيوانات (🐱🐬🐼). ردي في جملتين.`;
 
-  const fullQuery = `${prompt}\nالمستخدم قال: ${query}\nردي بالسودانية في جملتين فقط وبدون رسميات:`;
-  
-  // استدعاء الـ API الجديد المستقر
-  const url = `https://api.sandipbgt.com/sandipapi?query=${encodeURIComponent(fullQuery)}`;
+  const history = [
+    { role: "system", content: prompt },
+    { role: "user", content: query }
+  ];
+
+  const boundary = "----WebKitFormBoundary" + Math.random().toString(36).substring(2);
+  let formData = `--${boundary}\r\nContent-Disposition: form-data; name="chat_style"\r\n\r\nchat\r\n`;
+  formData += `--${boundary}\r\nContent-Disposition: form-data; name="chatHistory"\r\n\r\n${JSON.stringify(history)}\r\n`;
+  formData += `--${boundary}\r\nContent-Disposition: form-data; name="model"\r\n\r\nstandard\r\n`;
+  formData += `--${boundary}--\r\n`;
 
   try {
-    const res = await axios.get(url, { timeout: 30000 });
-    return res.data.answer || res.data.message || (isDev ? "يا بابا ما قدرت أرد 🐱" : "مشغولة بنفسي حالياً 🐱");
+    const res = await axios({
+      method: "POST",
+      url: "https://api.deepai.org/hacking_is_a_serious_crime",
+      headers: {
+        "content-type": `multipart/form-data; boundary=${boundary}`,
+        "origin": "https://deepai.org",
+        "user-agent": "Mozilla/5.0"
+      },
+      data: formData
+    });
+
+    let reply = res.data.output || res.data.text || res.data;
+    return reply.trim() || (isDev ? "يا بابا ما لقيت رد 🐱" : "ما دايرة أرد 🐱");
   } catch (e) {
+    console.error("DeepAI Error:", e.message);
     throw e;
   }
 }
