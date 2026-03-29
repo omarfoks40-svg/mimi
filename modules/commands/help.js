@@ -152,7 +152,7 @@ module.exports = {
         finalMessage += ` ⠇الـمـطـوࢪ: سينكو 𓆩☆𓆪`;
 
         try {
-            const imagePath = await downloadImage('https://i.ibb.co/FZCHwt9/received-1740662803574945.webp');
+            const imagePath = await downloadImage('https://i.ibb.co/x8rHg1Zw/1774807060368.png');
             return api.sendMessage({
                 body: finalMessage.trim(),
                 attachment: fs.createReadStream(imagePath)
