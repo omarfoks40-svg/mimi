@@ -1,90 +1,97 @@
 const axios = require("axios");
 const fs = require("fs-extra");
 const path = require("path");
+const crypto = require('crypto');
 
 module.exports = {
   config: {
     name: "تلقائي",
-    version: "3.0.0",
-    author: "AbuUbaida & Cenko",
+    version: "4.0.0",
+    author: "SINKO",
     countDown: 0,
     role: 0,
     category: "system"
   },
 
   handleEvent: async function ({ api, event }) {
-    const { body, threadID, messageID, type } = event;
+    const { body, threadID, messageID, type, senderID } = event;
+    
+    // تجاهل رسائل البوت والرسائل الفارغة
+    if (!body || senderID === api.getCurrentUserID()) return;
     if (type !== "message" && type !== "message_reply") return;
-    if (!body) return;
 
-    const input = body.trim();
-    const fbReg = /(https?:\/\/)?(www\.)?(facebook\.com|fb\.watch)\/.*/gi;
-    const igReg = /(https?:\/\/)?(www\.)?instagram\.com\/.*/gi;
-    const ttReg = /https:\/\/(www\.|vt\.|vm\.)?tiktok\.com\/[\w\.-]+\/?/gi;
-    const ytReg = /(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.*/gi;
+    // فحص وجود رابط مدعوم
+    const urlMatch = body.match(/(https?:\/\/[^\s]+)/);
+    if (!urlMatch) return;
 
-    if (fbReg.test(input) || igReg.test(input) || ttReg.test(input) || ytReg.test(input)) {
-      const urlMatch = input.match(fbReg) || input.match(igReg) || input.match(ttReg) || input.match(ytReg);
-      const url = urlMatch[0];
+    const url = urlMatch[0];
+    const supported = ["facebook.com", "fb.watch", "tiktok.com", "instagram.com", "youtu.be", "youtube.com", "twitter.com", "x.com"];
+    
+    if (!supported.some(p => url.includes(p))) return;
 
-      try {
-        api.setMessageReaction("⌚", messageID, () => {}, true);
+    const cacheDir = path.join(__dirname, 'cache');
+    const filePath = path.join(cacheDir, `auto_${crypto.randomBytes(4).toString('hex')}.mp4`);
 
-        let apiUrl, downloadKey;
-        // نفس الـ APIs والـ Keys من كودك الأصلي
-        if (url.includes('facebook.com') || url.includes('fb.watch')) {
-          apiUrl = `https://hridoy-apis.vercel.app/downloader/facebook2?url=${encodeURIComponent(url)}&apikey=hridoyXQC`;
-          downloadKey = 'video_HD.url';
-        } else if (url.includes('instagram.com')) {
-          apiUrl = `https://hridoy-apis.vercel.app/downloader/instagram?url=${encodeURIComponent(url)}&apikey=hridoyXQC`;
-          downloadKey = 'downloadUrl';
-        } else if (url.includes('tiktok.com')) {
-          apiUrl = `https://api.tiklydown.eu.org/api/download?url=${encodeURIComponent(url)}`;
-        } else if (url.includes('youtu.be') || url.includes('youtube.com')) {
-          apiUrl = `https://hridoy-apis.vercel.app/downloader/ytmp4?url=${encodeURIComponent(url)}&format=1080&apikey=hridoyXQC`;
-          downloadKey = 'result.download';
-        }
+    try {
+      // تفاعل "انتظار"
+      api.setMessageReaction("⏳", messageID, () => {}, true);
 
-        const response = await axios.get(apiUrl);
-        
-        let downloadUrl;
-        if (url.includes('tiktok.com')) {
-            downloadUrl = response.data.video?.noWatermark || response.data.video?.watermark;
-        } else {
-            // الطريقة الذكية اللي إنت مستخدمها لتفصيص الـ JSON (الـ reduce)
-            downloadUrl = downloadKey.split('.').reduce((obj, key) => obj && obj[key], response.data);
-        }
+      // استخدام الـ API الشامل والسريع (Noobs API)
+      const apiEndpoint = `https://noobs-api.top/dipto/alldl?url=${encodeURIComponent(url)}`;
+      const { data } = await axios.get(apiEndpoint, { timeout: 30000 });
 
-        if (downloadUrl) {
-          const cacheDir = path.join(__dirname, 'cache');
-          await fs.ensureDir(cacheDir);
-          const filePath = path.join(cacheDir, `auto_${Date.now()}.mp4`);
-
-          // "الزيت" هنا: استخدام arraybuffer و Buffer.from زي كودك بالظبط
-          const videoRes = await axios.get(downloadUrl, { 
-            responseType: 'arraybuffer', 
-            timeout: 100000,
-            headers: { 'User-Agent': 'Mozilla/5.0' }
-          });
-          
-          await fs.writeFile(filePath, Buffer.from(videoRes.data));
-
-          await api.sendMessage({
-            body: `●───── ⌬ ─────●\n┇ ⦿ تـم الـتـحـمـيـل تـلـقـائـيـاً ✅\n●───── ⌬ ─────●`,
-            attachment: fs.createReadStream(filePath)
-          }, threadID, () => {
-            api.setMessageReaction("✅", messageID, () => {}, true);
-            if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-          }, messageID);
-        }
-      } catch (e) {
-        console.error("Auto Download Error:", e);
-        api.setMessageReaction("❌", messageID, () => {}, true);
+      if (!data.result) {
+         return api.setMessageReaction("❌", messageID, () => {}, true);
       }
+
+      await fs.ensureDir(cacheDir);
+
+      // تحميل الفيديو كـ Stream (أسرع وأخف على راندر)
+      const videoRes = await axios({
+        url: data.result,
+        method: 'GET',
+        responseType: 'stream',
+        timeout: 120000,
+        headers: { 'User-Agent': 'Mozilla/5.0' }
+      });
+
+      const writer = fs.createWriteStream(filePath);
+      videoRes.data.pipe(writer);
+
+      await new Promise((resolve, reject) => {
+        writer.on('finish', resolve);
+        writer.on('error', reject);
+      });
+
+      const stats = fs.statSync(filePath);
+      const fileSizeMB = (stats.size / (1024 * 1024)).toFixed(2);
+
+      // حماية البوت من الملفات الضخمة (Messenger Limit ~85MB)
+      if (stats.size > 80 * 1024 * 1024) {
+        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+        api.setMessageReaction("❌", messageID, () => {}, true);
+        return api.sendMessage(`⚠️ الحجم كبير جداً: ${fileSizeMB} MB`, threadID, messageID);
+      }
+
+      const msg = {
+        body: `تم التحميل تلقائياً ✅\n\n▸ العنوان: ${data.title || "فيديو"}\n▸ الحجم: ${fileSizeMB} MB`,
+        attachment: fs.createReadStream(filePath)
+      };
+
+      return api.sendMessage(msg, threadID, () => {
+        api.setMessageReaction("✅", messageID, () => {}, true);
+        // "المكنسة الفورية" لمسح الملف بعد الإرسال
+        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+      }, messageID);
+
+    } catch (error) {
+      console.error("Auto DL Error:", error.message);
+      api.setMessageReaction("❌", messageID, () => {}, true);
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
     }
   },
 
   onStart: async function ({ api, event }) {
-    api.sendMessage("نظام التحميل التلقائي (بمنطق كود سينكو) شغال! 🚀", event.threadID);
+    return api.sendMessage("نظام التحميل التلقائي (النسخة المستقرة) شغال الآن! 🚀", event.threadID);
   }
 };
