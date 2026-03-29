@@ -6,11 +6,11 @@ const crypto = require("crypto");
 module.exports = {
   config: {
     name: 'عدلي',
-    aliases: ['sd', 'بنبن'],
-    version: '3.0.0',
+    aliases: ['sd', 'بنين'],
+    version: '3.5.0',
     author: 'SINKO',
-    description: 'توليد صور بنظام التمويه ضد الحظر',
-    countDown: 10, // زيادة الكول داون مهمة جداً للحماية
+    description: 'توليد صور بنظام الحماية المستقرة من الفصل',
+    countDown: 15, // زيادة الأمان لراندر
     prefix: true,
     category: 'ai',
     adminOnly: false 
@@ -21,11 +21,11 @@ module.exports = {
     const developerID = "61588108307572"; 
 
     if (senderID !== developerID) {
-      return api.setMessageReaction("🚯", messageID, (err) => {}, true);
+      return api.setMessageReaction("⭕", messageID, () => {}, true);
     }
 
     const prompt = args.join(" ");
-    if (!prompt) return api.sendMessage('❌ يرجى كتابة وصف للصورة.', threadID, messageID);
+    if (!prompt) return api.sendMessage('⚠️ يرجى كتابة وصف للصورة.', threadID, messageID);
 
     let imageUrl;
     if (event.type === "message_reply") {
@@ -35,33 +35,27 @@ module.exports = {
       }
     }
 
-    if (!imageUrl) return api.sendMessage('❌ يرجى الرد على صورة لتعديلها.', threadID, messageID);
+    if (!imageUrl) return api.sendMessage('⚠️ يرجى الرد على صورة لتعديلها.', threadID, messageID);
 
-    // 1. التفاعل العشوائي للتمويه
+    // تفاعل البدء
     api.setMessageReaction("⏳", messageID, () => {}, true);
 
-    const cachePath = path.join(__dirname, "cache", `sd_${crypto.randomBytes(4).toString('hex')}.png`);
-    if (!fs.existsSync(path.join(__dirname, "cache"))) fs.mkdirSync(path.join(__dirname, "cache"));
+    const cacheDir = path.join(__dirname, "cache");
+    const fileName = `sd_${crypto.randomBytes(4).toString('hex')}.png`;
+    const cachePath = path.join(cacheDir, fileName);
 
     try {
-      // 2. محاكاة "بشرية": انتظار بسيط قبل الطلب
-      await new Promise(resolve => setTimeout(resolve, Math.random() * 2000 + 1000));
+      await fs.ensureDir(cacheDir);
 
       const apiUrl = `https://uncensored-sd.onrender.com/api/sd?prompt=${encodeURIComponent(prompt)}&imageUrl=${encodeURIComponent(imageUrl)}`;
 
-      // 3. استخدام User-Agent متغير لكل طلب لخدع الفيس
-      const userAgents = [
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36",
-        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36"
-      ];
-
+      // طلب الصورة مع مهلة زمنية صارمة لعدم قتل البوت
       const response = await axios({
         method: 'get',
         url: apiUrl,
         responseType: 'stream',
-        timeout: 120000,
-        headers: { 'User-Agent': userAgents[Math.floor(Math.random() * userAgents.length)] }
+        timeout: 90000, // 90 ثانية كحد أقصى
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
       });
 
       const writer = fs.createWriteStream(cachePath);
@@ -74,21 +68,24 @@ module.exports = {
 
       const messageBody = `✨ نـتـيـجـة الـتـولـيـد ✨\n\n📝 الـوصـف : ${prompt}\n\n✅ تـم الـتـنـفـيذ بـنـجـاح`;
 
-      // 4. إرسال الصورة مع "تأخير الرفع" لإيهام الفيس إنك مستخدم حقيقي
-      setTimeout(async () => {
-        await api.sendMessage({
-          body: messageBody,
-          attachment: fs.createReadStream(cachePath)
-        }, threadID, () => {
-          if (fs.existsSync(cachePath)) fs.unlinkSync(cachePath);
-          api.setMessageReaction("✅", messageID, () => {}, true);
-        }, messageID);
-      }, 2000);
+      // إرسال النتيجة مع تنظيف الذاكرة
+      return api.sendMessage({
+        body: messageBody,
+        attachment: fs.createReadStream(cachePath)
+      }, threadID, () => {
+        api.setMessageReaction("✅", messageID, () => {}, true);
+        if (fs.existsSync(cachePath)) fs.unlinkSync(cachePath);
+      }, messageID);
 
     } catch (error) {
-      console.error('SD Error:', error);
+      console.error('SD Error:', error.message);
+      api.setMessageReaction("❌", messageID, () => {}, true);
       if (fs.existsSync(cachePath)) fs.unlinkSync(cachePath);
-      api.sendMessage('❌ فشل في معالجة الصورة.', threadID, messageID);
+      
+      let errorMsg = "❌ فشل في معالجة الصورة: السيرفر مشغول حالياً.";
+      if (error.code === 'ECONNABORTED') errorMsg = "⚠️ انتهت مهلة الطلب، السيرفر بطيء جداً.";
+      
+      return api.sendMessage(errorMsg, threadID, messageID);
     }
   },
 };
