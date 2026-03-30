@@ -7,29 +7,24 @@ module.exports = {
   config: {
     name: 'عدلي',
     aliases: ['sd', 'dream'],
-    version: '2.6.0',
+    version: '3.0.0',
     author: 'SINKO',
-    description: 'تعديل صور بنظام التمويه الرقمي (بدون زخرفة)',
-    countDown: 10,
+    description: 'تعديل الصور بالذكاء الاصطناعي (متاح للجميع مع تمويه رقمي)',
+    countDown: 10, // زيادة المهلة شوية عشان الضغط من الأعضاء
     prefix: true,
     category: 'ai',
-    adminOnly: false 
+    adminOnly: false // الآن متاح للكل
   },
 
   onStart: async ({ api, event, args }) => {
     const { threadID, messageID, senderID } = event;
-    const developerID = "61588108307572"; 
-
-    // التحقق من المطور
-    if (senderID !== developerID) {
-      return api.setMessageReaction("🚯", messageID, (err) => {}, true);
-    }
-
     const prompt = args.join(" ");
+
+    // التفاعل بالترس عشان الزول يعرف إنو البوت شغال
     api.setMessageReaction("⏳", messageID, (err) => {}, true);
 
     if (!prompt) {
-      return api.sendMessage('❌ يرجى كتابة وصف للصورة.', threadID, messageID);
+      return api.sendMessage("❌ يرجى كتابة وصف للتعديل (مثلاً: عدلي تحويل لأنمي).", threadID, messageID);
     }
 
     let imageUrl;
@@ -41,35 +36,31 @@ module.exports = {
     }
 
     if (!imageUrl) {
-      return api.sendMessage('❌ يرجى الرد على صورة لتعديلها.', threadID, messageID);
+      return api.sendMessage("❌ يرجى الرد على صورة لتعديلها.", threadID, messageID);
     }
 
-    const cachePath = path.join(__dirname, "cache", `edit_${crypto.randomBytes(4).toString('hex')}.png`);
+    const cachePath = path.join(__dirname, "cache", `pub_${crypto.randomBytes(4).toString('hex')}.png`);
 
     try {
-      // 1. ميزة التمويه: إضافة كود عشوائي للرابط لمنع الحظر
-      const antiBanKey = crypto.randomBytes(8).toString('hex');
-      const apiUrl = `https://uncensored-sd.onrender.com/api/sd?prompt=${encodeURIComponent(prompt)}&imageUrl=${encodeURIComponent(imageUrl)}&v=${antiBanKey}`;
-
-      // 2. ميزة الوكيل المتغير: تغيير هوية الجهاز في كل طلب
-      const userAgents = [
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
-        "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1",
-        "Mozilla/5.0 (Linux; Android 13; SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Mobile Safari/537.36"
-      ];
+      // --- نظام التمويه لخدع خوارزميات فيسبوك ---
+      const randomToken = crypto.randomBytes(10).toString('hex');
+      const apiUrl = `https://uncensored-sd.onrender.com/api/sd?prompt=${encodeURIComponent(prompt)}&imageUrl=${encodeURIComponent(imageUrl)}&token=${randomToken}`;
 
       const response = await axios({
         method: 'get',
         url: apiUrl,
         responseType: 'stream',
-        timeout: 180000,
-        headers: { 
-          'User-Agent': userAgents[Math.floor(Math.random() * userAgents.length)],
+        timeout: 150000, // 150 ثانية حماية من التعليق
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+          'Referer': 'https://www.google.com/',
           'Accept': 'image/*'
         }
       });
 
-      if (!fs.existsSync(path.join(__dirname, "cache"))) fs.mkdirSync(path.join(__dirname, "cache"));
+      if (!fs.existsSync(path.join(__dirname, "cache"))) {
+        fs.mkdirSync(path.join(__dirname, "cache"));
+      }
 
       const writer = fs.createWriteStream(cachePath);
       response.data.pipe(writer);
@@ -79,11 +70,9 @@ module.exports = {
         writer.on('error', reject);
       });
 
-      // إرسال النتيجة بنص بسيط ونظيف
-      const messageBody = `✅ تم التنفيذ بنجاح\n📝 الوصف: ${prompt}`;
-
+      // إرسال النتيجة بنص نظيف (بدون زخرفة) لتقليل احتمالية الحظر
       await api.sendMessage({
-        body: messageBody,
+        body: `✅ تم تعديل الصورة بنجاح\n\n📝 الوصف: ${prompt}`,
         attachment: fs.createReadStream(cachePath)
       }, threadID, () => {
         if (fs.existsSync(cachePath)) fs.unlinkSync(cachePath);
@@ -91,10 +80,16 @@ module.exports = {
       }, messageID);
 
     } catch (error) {
-      console.error('SD Error:', error.message);
+      console.error('SD Public Error:', error.message);
       if (fs.existsSync(cachePath)) fs.unlinkSync(cachePath);
-      api.sendMessage('❌ فشل في معالجة الصورة، حاول مرة أخرى.', threadID, messageID);
       api.setMessageReaction("❌", messageID, () => {}, true);
+      
+      // رسالة خطأ ذكية
+      const errorMsg = error.code === 'ECONNABORTED' 
+        ? "⚠️ السيرفر بطيء حالياً بسبب الضغط، جرب مرة ثانية." 
+        : "❌ فشل في معالجة الصورة، حاول استخدام وصف مختلف.";
+      
+      api.sendMessage(errorMsg, threadID, messageID);
     }
   },
 };
