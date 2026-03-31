@@ -23,7 +23,7 @@ module.exports = {
         countDown: 3,
         role: 1,
         description: "إعدادات حماية المجموعة",
-        category: "إعدادات",
+        category: "group",
         aliases: ["setting", "حماية"],
         guide: { ar: "{pn}" }
     },
