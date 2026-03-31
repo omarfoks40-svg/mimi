@@ -73,39 +73,57 @@ module.exports = {
         const prompt = args.join(" ");
         if (!prompt) return api.sendMessage("أكتب وصف الصورة ", threadID, messageID);
 
-        // 1. التفاعل الفوري (Reaction)
         api.setMessageReaction("⌛", messageID, () => {}, true);
 
-        // 2. إرسال رسالة "جاري التوليد" لكسر الـ Timeout بتاع راندر
         api.sendMessage("⏳ جاري التوليد", threadID, async (err, info) => {
             const cachePath = path.join(__dirname, 'cache', `nano_${Date.now()}.jpg`);
+            await fs.ensureDir(path.join(__dirname, 'cache'));
+
+            const TOTAL_TIMEOUT = 90000;
+            let timedOut = false;
+            const timeout = setTimeout(() => {
+                timedOut = true;
+                api.sendMessage("⏰ انتهى وقت التوليد، .", threadID, messageID);
+                api.setMessageReaction("❌", messageID, () => {}, true);
+                if (info) api.unsendMessage(info.messageID);
+                fs.remove(cachePath).catch(() => {});
+            }, TOTAL_TIMEOUT);
 
             try {
-                // 3. الترجمة والعمل في الخلفية
-                const trans = await axios.get(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=en&dt=t&q=${encodeURIComponent(prompt)}`);
+                const trans = await axios.get(
+                    `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=en&dt=t&q=${encodeURIComponent(prompt)}`,
+                    { timeout: 10000 }
+                );
                 const magicPrompt = trans.data[0][0][0] + ", high quality, ultra detail, masterpiece";
 
                 const magicAi = new MagicAi(null, models);
                 const result = await magicAi.Generate(magicPrompt, 27, 0);
 
-                const imgRes = await axios.get(result.url, { responseType: 'arraybuffer' });
+                if (timedOut) return;
+                clearTimeout(timeout);
+
+                const imgRes = await axios.get(result.url, { responseType: 'arraybuffer', timeout: 15000 });
                 await fs.outputFile(cachePath, Buffer.from(imgRes.data));
 
-                // 4. إرسال النتيجة النهائية
-                await api.sendMessage({ 
-                    body: `✅ تم التوليد بنجاح\n📝 وصفك: ${prompt}`, 
-                    attachment: fs.createReadStream(cachePath) 
+                await api.sendMessage({
+                    body: `✅ تم التوليد بنجاح\n📝 وصفك: ${prompt}`,
+                    attachment: fs.createReadStream(cachePath)
                 }, threadID, () => {
-                    fs.removeSync(cachePath); // مسح فوري للملف
+                    fs.remove(cachePath).catch(() => {});
+                    if (info) api.unsendMessage(info.messageID);
                 }, messageID);
 
                 api.setMessageReaction("✅", messageID, () => {}, true);
 
             } catch (e) {
-                console.error(e);
-                api.sendMessage("⚠️ السيرفر مضغوط حالياً، جرب تاني يا ملك.", threadID, messageID);
-                if (fs.existsSync(cachePath)) fs.removeSync(cachePath);
-                api.setMessageReaction("❌", messageID, () => {}, true);
+                clearTimeout(timeout);
+                if (!timedOut) {
+                    console.error(e);
+                    api.sendMessage("⚠️ السيرفر مضغوط حالياً، جرب تاني يا ملك.", threadID, messageID);
+                    if (info) api.unsendMessage(info.messageID);
+                    api.setMessageReaction("❌", messageID, () => {}, true);
+                }
+                fs.remove(cachePath).catch(() => {});
             }
         }, messageID);
     }
