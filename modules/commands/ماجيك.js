@@ -113,30 +113,44 @@ module.exports = {
         if (!prompt) return api.sendMessage("يرجى كتابة وصف الصورة.", threadID, messageID);
 
         const cachePath = path.join(__dirname, 'cache', `magic_${Date.now()}.jpg`);
+        await fs.ensureDir(path.join(__dirname, 'cache'));
+
+        const TOTAL_TIMEOUT = 90000;
+        let timedOut = false;
+        const timeout = setTimeout(() => {
+            timedOut = true;
+            api.sendMessage("⏰ انتهى وقت التوليد، ", threadID, messageID);
+            api.setMessageReaction("❌", messageID, () => {}, true);
+            fs.remove(cachePath).catch(() => {});
+        }, TOTAL_TIMEOUT);
 
         try {
             api.setMessageReaction("⏳", messageID, () => {}, true);
             const magicAi = new MagicAi(null, models);
             const result = await magicAi.Generate(prompt, 27, 0, 0);
 
-            await fs.ensureDir(path.join(__dirname, 'cache'));
-            const response = await axios.get(result.url, { responseType: 'arraybuffer' });
+            if (timedOut) return;
+            clearTimeout(timeout);
+
+            const response = await axios.get(result.url, { responseType: 'arraybuffer', timeout: 15000 });
             await fs.writeFile(cachePath, Buffer.from(response.data));
 
             await api.sendMessage({
                 body: "تم التوليد بنجاح بواسطة Aplin Bot ✅",
                 attachment: fs.createReadStream(cachePath)
             }, threadID, () => {
-                // المكنسة الفورية: مسح الملف فور الإرسال
-                if (fs.existsSync(cachePath)) fs.unlinkSync(cachePath);
+                fs.remove(cachePath).catch(() => {});
             }, messageID);
 
             api.setMessageReaction("✅", messageID, () => {}, true);
 
         } catch (e) {
-            api.sendMessage(`فشل التوليد: ${e.message}`, threadID, messageID);
-            api.setMessageReaction("❌", messageID, () => {}, true);
-            if (fs.existsSync(cachePath)) fs.unlinkSync(cachePath);
+            clearTimeout(timeout);
+            if (!timedOut) {
+                api.sendMessage(`فشل التوليد: ${e.message}`, threadID, messageID);
+                api.setMessageReaction("❌", messageID, () => {}, true);
+            }
+            fs.remove(cachePath).catch(() => {});
         }
     }
 };
