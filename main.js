@@ -145,5 +145,13 @@ const initializeBot = async () => {
   }
 };
 
+process.on('unhandledRejection', (reason) => {
+  log('error', `Unhandled Promise Rejection: ${reason && reason.message ? reason.message : reason}`);
+});
+
+process.on('uncaughtException', (err) => {
+  log('error', `Uncaught Exception: ${err.message}`);
+});
+
 fs.removeSync('./PriyanshFca.json');
 initializeBot();
