@@ -1,49 +1,45 @@
 const os = require('os');
 const { performance } = require('perf_hooks');
-const moment = require('moment');
-const fs = require('fs');
+const moment = require('moment-timezone');
+const fs = require('fs-extra');
 const path = require('path');
 
 const configPath = path.join(__dirname, '..', '..', 'config', 'config.json');
-
-function readDB(filePath) {
-    try {
-        const data = fs.readFileSync(filePath, 'utf8');
-        return JSON.parse(data);
-    } catch (error) {
-        return {};
-    }
-}
 
 module.exports = {
   config: {
     name: 'ابتايم',
     aliases: ['uptime', 'up', 'stats'],
-    version: '2.8',
-    author: 'سينكو',
-    description: 'عرض حالة النظام (للمطور فقط)',
+    version: '3.1.0',
+    author: 'SINKO',
+    description: 'عرض حالة النظام مع التعديل التلقائي (للمطور)',
     countDown: 5,
     prefix: true,
     category: 'utility',
-    adminOnly: true // تم تفعيل خيار الإدارة فقط هنا أيضاً كطبقة حماية أولى
+    adminOnly: true 
   },
 
   onStart: async ({ api, event }) => {
     const { threadID, messageID, senderID } = event;
-    const config = readDB(configPath);
+    
+    let config;
+    try {
+      config = fs.readJsonSync(configPath);
+    } catch (e) {
+      config = {};
+    }
     const adminList = config.adminUIDs || [];
 
-    // التحقق الصارم من أن المستخدم هو المطور
     if (!adminList.includes(senderID)) {
-      return api.sendMessage("", threadID, messageID);
+      return api.sendMessage("⚠️ هذا الأمر مخصص لـ سـيـنـكـو فقط.", threadID, messageID);
     }
 
-    api.setMessageReaction("🧭", messageID, (err) => {}, true);
+    api.setMessageReaction("❄️", messageID, (err) => {}, true);
 
+    // إرسال رسالة الانتظار أولاً (الميزة اللي رجعناها)
     const waitingMsg = await api.sendMessage(
-      '✾ ┇ جاري استخراج بيانات النظام الخاصة... ⏳',
-      threadID,
-      messageID
+      '> ˼⌛˹↜ جـاري جـلـب الـبـيـانـات ↶\nـ\n❊\n',
+      threadID
     );
     const processingID = waitingMsg.messageID;
 
@@ -52,57 +48,54 @@ module.exports = {
       const days = Math.floor(uptimeSeconds / 86400);
       const hours = Math.floor((uptimeSeconds % 86400) / 3600);
       const minutes = Math.floor((uptimeSeconds % 3600) / 60);
-      const seconds = Math.floor(uptimeSeconds % 60);
-      const uptimeStr = `${days}d ${hours}h ${minutes}m ${seconds}s`;
+
+      const timeNow = moment.tz("Africa/Khartoum");
+      const fullDate = timeNow.format("DD / MM / YYYY");
+      const dayName = timeNow.locale('ar').format("dddd");
+      const timeStr = timeNow.format("hh:mm:ss A");
 
       const ramUsage = (process.memoryUsage().rss / 1024 / 1024).toFixed(2);
       const totalRam = (os.totalmem() / 1024 / 1024 / 1024).toFixed(2);
       const ping = Math.floor(performance.now() % 1000);
-      const time = moment().format('hh:mm:ss A');
       
-      // جلب إحصائيات البوت
       let threadCount = 'غير متوفر';
-      let userCount = 'غير متوفر';
-
       try {
         const threadList = await api.getThreadList(100, null, ["INBOX"]);
         threadCount = threadList.length;
       } catch (e) {}
 
-      if (global.data && global.data.allUserID) {
-        userCount = global.data.allUserID.length;
-      }
+      const message = `> ˼⏰˹↜ حـالـة الـنـظـام ↶
+╮──────────────⟢ـ
+┆˼🧭˹┊ الـتـاريـخ ↜｢ ${fullDate} ｣
+┆˼⚕️˹┊ الـيـوم ↜｢ ${dayName} ｣
+┆˼🕕˹┊ الـوقـت ↜｢ ${timeStr} ｣
+┆˼🚀˹┊ الـبـنـغ ↜｢ ${ping}ms ｣
+╯──────────────⟢ـ
+> ˼🌌˹↜ إحـصـائـيـات ابلين ↶
+╮──────────────⟢ـ
+┆˼⏳˹┊ الـتـشـغـيل ↜｢ ${days}يوم و ${hours}س و ${minutes}د ｣
+┆˼👥˹┊ الـمـجـموعات ↜｢ ${threadCount} ｣
+┆˼🧠˹┊ الـرام الـمستخدم ↜｢ ${ramUsage}MB ｣
+┆˼📂˹┊ إجـمـالي الـرام ↜｢ ${totalRam}GB ｣
+╯──────────────⟢ـ
+> ˼🖥️˹↜ مـعـلـومـات الـسـيـرفـر ↶
+╮──────────────⟢ـ
+┆˼❄️˹┊ الـنـظـام ↜｢ ${os.type()} ｣
+┆˼𖣔˹┊ الـمـعـالـج ↜｢ ${os.cpus()[0].model.split(' ')[0]} ｣
+┆˼✅˹┊ الـحـالـة ↜｢ مـتـصل بنجاح ｣
+╯──────────────⟢ـ
+> ˼👤˹↜ الـمـطـوࢪ : SINKO ↶`;
 
-      const message = 
-`⏣────── ✾ ⌬ ✾ ──────⏣
-✾ ┇
-✾ ┇ ⏣ ⟬ حـالـة الـنـظـام ⟭
-✾ ┇ ◍ الـوقت: ${time}
-✾ ┇ ◍ الـبـنـغ: ${ping}ms
-✾ ┇ ◍ الـتـشغيل: ${uptimeStr}
-✾ ┇ ⸻⸻⸻⸻⸻
-✾ ┇
-✾ ┇ ⏣ ⟬ إحـصـائـيـات الـبـوت ⟭
-✾ ┇ ◍ الـمجموعات: ${threadCount}
-✾ ┇ ◍ الـمستخدمين: ${userCount}
-✾ ┇ ◍ الـرام المستهلكة: ${ramUsage}MB
-✾ ┇ ◍ إجمالي الـرام: ${totalRam}GB
-✾ ┇ ⸻⸻⸻⸻⸻
-✾ ┇
-✾ ┇ ⏣ ⟬ مـعـلـومـات الـسـيـرفـر ⟭
-✾ ┇ ◍ الـنظام: ${os.type()} ${os.arch()}
-✾ ┇ ◍ الـمعالج: ${os.cpus()[0].model.split(' ')[0]}
-✾ ┇ ⸻⸻⸻⸻⸻
-✾ ┇
-⏣────── ✾ ⌬ ✾ ──────⏣
- ⠇الـمـطـوࢪ: سينكو 𓆩☆𓆪
- ⠇حـالة الـبوت: مـتصل بنجاح ✅`;
-
-      api.editMessage(message, processingID);
+      // التعديل النهائي للرسالة (Edit Message)
+      setTimeout(() => {
+        api.editMessage(message, processingID, () => {
+          api.setMessageReaction("✅", messageID, () => {}, true);
+        });
+      }, 1000);
 
     } catch (error) {
       console.error('Uptime error:', error);
-      api.editMessage('⏣── ✾ ❌ حدث خطأ داخلي أثناء الجلب ✾ ──⏣', processingID);
+      api.editMessage('❌ فشل استخراج بيانات راندر يا ملك.', processingID);
     }
   },
 };
