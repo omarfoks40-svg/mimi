@@ -1,7 +1,5 @@
 const fs = require('fs');
 const path = require('path');
-const axios = require('axios');
-const fsExtra = require('fs-extra');
 const moment = require("moment-timezone");
 
 const configPath = path.join(__dirname, '..', '..', 'config', 'config.json');
@@ -20,20 +18,18 @@ module.exports = {
     config: {
         name: 'اوامر',
         aliases: ['menu', 'help', 'الأوامر'],
-        version: '6.5.0',
+        version: '8.6.0',
         author: 'سينكو',
         countDown: 5,
         prefix: true,
-        description: 'عرض قائمة الأوامر بالزخرفة الملكية والفاصلة القديمة.',
         category: 'المجموعة'
     },
 
     onStart: async ({ api, event, args }) => {
         const config = readDB(configPath);
-        const { threadID, messageID } = event;
+        const { threadID, messageID, senderID } = event;
         const input = args[0];
 
-        // جلب الوقت والتاريخ الحالي بتوقيت السودان
         const timeNow = moment.tz("Africa/Khartoum");
         const dateStr = timeNow.format("DD MMMM YYYY");
         const dayStr = timeNow.locale('ar').format("dddd");
@@ -56,7 +52,6 @@ module.exports = {
             self.findIndex(c => c.name === cmd.name) === index
         );
 
-        // تفاصيل أمر محدد
         if (input) {
             const cmd = commands[input.toLowerCase()];
             if (!cmd) return api.sendMessage(`❌ لم يتم العثور على الأمر "${input}"`, threadID, messageID);
@@ -74,13 +69,26 @@ module.exports = {
             return api.sendMessage(detailMsg, threadID, messageID);
         }
 
-        // بناء القائمة الرئيسية
         const categories = {};
+        const categoryMap = {
+            'group': 'المجموعة', 'image': 'الصور', 'media': 'الوسائط',
+            'admin': 'الإدارة', 'fun': 'الترفيه', 'random': 'عشوائي',
+            'music': 'الموسيقى', 'video': 'الفيديو', 'ai': 'الذكاء الاصطناعي',
+            'tools': 'الأدوات', 'utility': 'الخدمات السريعة', 'owner': 'المطور',
+            'level': 'المستوى', 'game': 'اللعب', 'play': 'اللعب',
+        };
+
         for (const cmd of uniqueCommands) {
-            let cat = cmd.category || 'الترفيه';
-            if (!categories[cat]) categories[cat] = [];
-            categories[cat].push(cmd.name);
+            let category = cmd.category || 'الترفيه';
+            if (['اقتصاد', 'اللعب', 'game', 'play'].includes(category)) category = 'اللعب';
+            if (category === 'owner' || category === 'المطور' || cmd.role === 2 || ['رستارت', 'إشعار'].includes(cmd.name)) category = 'المطور';
+            
+            category = categoryMap[category] || category;
+            if (!categories[category]) categories[category] = [];
+            categories[category].push(cmd.name);
         }
+
+        const orderedCats = ['المجموعة', 'الصور', 'الوسائط', 'الذكاء الاصطناعي', 'الترفيه', 'اللعب', 'عشوائي', 'المطور', 'الأدوات'];
 
         let msg = `> ˼⏰˹↜ الـتـوقـيـت ↶\n`;
         msg += `╮──────────────⟢ـ\n`;
@@ -92,14 +100,20 @@ module.exports = {
         msg += `> ˼🌌˹↜ أّوٌأّمًـر APLIN ↶\n`;
         msg += `╮──────────────⟢ـ\n`;
 
-        for (const cat in categories) {
-            msg += `✾˹┊ ⟬ قـسم ${cat} ⟭\n`;
-            const cmds = categories[cat];
+        for (const category of orderedCats) {
+            const cmds = categories[category];
+            if (!cmds || cmds.length === 0) continue;
+
+            const adminList = config.adminUIDs || [];
+            if (category === "المطور" && !adminList.includes(senderID)) continue;
+
+            msg += `✾˹┊ ⟬ قـسم ${category.toUpperCase()} ⟭\n`;
             for (let i = 0; i < cmds.length; i += 3) {
-                // تبديل النقطة بالفاصلة ◍ كما طلبت
                 const row = cmds.slice(i, i + 3).map(c => `◍ ${c}`).join(" ");
                 msg += `✾˹┊ ${row}\n`;
             }
+            // إضافة الخط الفاصل بين الأقسام هنا
+            msg += `✾˹┊ ⸻⸻⸻⸻⸻\n`;
             msg += `✾˹┊\n`;
         }
         
