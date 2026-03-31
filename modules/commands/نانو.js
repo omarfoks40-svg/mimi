@@ -1,99 +1,59 @@
 const axios = require('axios');
-const crypto = require("crypto");
 const fs = require('fs-extra');
 const path = require('path');
-
-function Sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-class MagicAi {
-    constructor(d_id, models) {
-        this.d_id = d_id || this.GenerateID();
-        this.Token = null;
-        this.baseUrl = 'https://api.magicaiimage.top';
-        this.models = models;
-    }
-
-    GenerateID() { return Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 10); }
-
-    Encrypt(OData) {
-        const key = Buffer.from([0, 0, 0, 109, 97, 103, 105, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
-        const iv = Buffer.alloc(16, 0);
-        const cipher = crypto.createCipheriv("aes-128-cbc", key, iv);
-        const encryptedBuffer = Buffer.concat([cipher.update(JSON.stringify(OData), "utf8"), cipher.final()]);
-        return encryptedBuffer.toString("base64");
-    }
-
-    Decrypt(Edata) {
-        const key = Buffer.from([0, 0, 0, 109, 97, 103, 105, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
-        const iv = Buffer.alloc(16, 0);
-        const decipher = crypto.createDecipheriv("aes-128-cbc", key, iv);
-        const decrypted = Buffer.concat([decipher.update(Buffer.from(Edata, "base64")), decipher.final()]);
-        return JSON.parse(decrypted.toString("utf8"));
-    }
-
-    async Requester(endpoint, param, token = this.Token) {
-        try {
-            const data = { data: this.Encrypt({ param, header: { token: token || "", "d-id": this.d_id, version: "3.1.0", "app-code": "magic" } }) };
-            const res = await axios.post(`${this.baseUrl}${endpoint}`, data, { headers: { "User-Agent": "okhttp/4.12.0" }, timeout: 20000 });
-            return this.Decrypt(res.data.data);
-        } catch (e) { throw new Error("سيرفر الماجيك تعبان"); }
-    }
-
-    async Generate(Prompt, Model, NUM) {
-        const login = await this.Requester('/app/login', { platform: 3, d_id: this.d_id, lang: 'en' }, '');
-        this.Token = login.data.token;
-        const startRes = await this.Requester('/app/task/text_to_image/post', {
-            positive_prompt: Prompt, model_id: parseInt(Model) || 27, styles: [{ name: "None", weight: "1" }],
-            quality_mode: 0, proportion: 0, batch_size: 1, public: true,
-            cfg: parseFloat(this.models[NUM].default.cfg), steps: parseInt(this.models[NUM].default.steps),
-            random_seed: Math.floor(Math.random() * 1e15), sampler_name: this.models[NUM].default.sampler_name,
-            scheduler: this.models[NUM].default.scheduler_name, speed_type: 0,
-        });
-
-        const TaskID = startRes.data.task.id;
-        for (let i = 0; i < 10; i++) { // تقليل المحاولات لحماية الرامات
-            await Sleep(5000); 
-            const status = await this.Requester('/app/task/waiting/list/get', { page: 1, size: 100 });
-            if (status.data?.[0]?.progress?.overall_percentage === "100.00") break;
-        }
-        const final = await this.Requester('/app/task/image/list/get', { task_id: TaskID });
-        return final.data[0];
-    }
-}
-
-const models = [{ id: 27, name: "Flux1.1 Pro", default: { cfg: 3.5, steps: 25, sampler_name: "euler", scheduler_name: "simple" } }];
+const crypto = require("crypto");
 
 module.exports = {
-    config: { name: "نانو", aliases: ["تخيل"], version: "9.0.0", author: "Sinko", countDown: 20, prefix: false, category: "ai" },
+    config: {
+        name: "نانو",
+        aliases: ["تخيل"],
+        version: "10.0.0",
+        author: "Sinko",
+        countDown: 10,
+        prefix: false,
+        category: "ai"
+    },
 
     onStart: async function ({ api, event, args }) {
         const { threadID, messageID } = event;
         const prompt = args.join(" ");
-        if (!prompt) return api.sendMessage("أكتب وصف الصورة بالعربي ✅", threadID, messageID);
 
-        const cachePath = path.join(__dirname, 'cache', `nano_${Date.now()}.jpg`);
-        api.setMessageReaction("⏰", messageID, () => {}, true);
+        if (!prompt) return api.sendMessage(" وصف الصورة؟ ", threadID, messageID);
 
-        try {
-            // ترجمة سريعة ومستقرة
-            const trans = await axios.get(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=en&dt=t&q=${encodeURIComponent(prompt)}`);
-            const magicPrompt = trans.data[0][0][0] + ", high quality, ultra detail";
+        // 1. رد فوري عشان راندر ما يقتل البوت (Break the Timeout)
+        api.sendMessage("⏳ جاري التوليد.. انتظر ثواني.", threadID, async (err, info) => {
+            const cachePath = path.join(__dirname, 'cache', `nano_${Date.now()}.jpg`);
+            
+            try {
+                // 2. ترجمة سريعة (Google API مستقر جداً)
+                const trans = await axios.get(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=en&dt=t&q=${encodeURIComponent(prompt)}`);
+                const enPrompt = trans.data[0][0][0];
 
-            const magicAi = new MagicAi(null, models);
-            const result = await magicAi.Generate(magicPrompt, 27, 0);
+                // 3. استخدام سيرفر Pollinations (Flux) لأنه أسرع بـ 10 أضعاف من الماجيك
+                // الماجيك بياخد دقيقة، ده بياخد 5 ثواني بس!
+                const seed = Math.floor(Math.random() * 1e12);
+                const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(enPrompt)}?width=1024&height=1024&seed=${seed}&model=flux&nologo=true`;
 
-            const imgRes = await axios.get(result.url, { responseType: 'arraybuffer' });
-            await fs.outputFile(cachePath, Buffer.from(imgRes.data));
+                const imgRes = await axios.get(imageUrl, { responseType: 'arraybuffer', timeout: 60000 });
+                
+                await fs.ensureDir(path.join(__dirname, 'cache'));
+                await fs.writeFile(cachePath, Buffer.from(imgRes.data));
 
-            await api.sendMessage({ body: `✅ تم التوليد بنجاح\n📝 وصفك: ${prompt}`, attachment: fs.createReadStream(cachePath) }, threadID, () => {
-                fs.removeSync(cachePath); // مسح فوري وقوي
-            }, messageID);
-            api.setMessageReaction("✅", messageID, () => {}, true);
-        } catch (e) {
-            api.sendMessage("⚠️ السيرفر مشغول، جرب تاني يا ملك.", threadID, messageID);
-            if (fs.existsSync(cachePath)) fs.removeSync(cachePath);
-        }
+                // 4. إرسال الصورة ومسح الرسالة القديمة أو التفاعل
+                await api.sendMessage({
+                    body: `✅ تم التوليد بنجاح\n📝 وصفك: ${prompt}`,
+                    attachment: fs.createReadStream(cachePath)
+                }, threadID, () => {
+                    if (fs.existsSync(cachePath)) fs.unlinkSync(cachePath);
+                }, messageID);
+
+                api.setMessageReaction("✅", messageID, () => {}, true);
+
+            } catch (e) {
+                console.error(e);
+                api.sendMessage("⚠️ السيرفر مضغوط حالياً، جرب تاني.", threadID, messageID);
+                if (fs.existsSync(cachePath)) fs.unlinkSync(cachePath);
+            }
+        }, messageID);
     }
 };
