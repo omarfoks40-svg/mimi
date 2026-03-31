@@ -10,9 +10,9 @@ module.exports = {
   config: {
     name: 'ابتايم',
     aliases: ['uptime', 'up', 'stats'],
-    version: '3.1.0',
+    version: '3.0.0',
     author: 'SINKO',
-    description: 'عرض حالة النظام مع التعديل التلقائي (للمطور)',
+    description: 'عرض حالة النظام بالزخرفة الملكية (للمطور)',
     countDown: 5,
     prefix: true,
     category: 'utility',
@@ -22,6 +22,7 @@ module.exports = {
   onStart: async ({ api, event }) => {
     const { threadID, messageID, senderID } = event;
     
+    // جلب الـ Config للتأكد من الأدمن
     let config;
     try {
       config = fs.readJsonSync(configPath);
@@ -31,29 +32,26 @@ module.exports = {
     const adminList = config.adminUIDs || [];
 
     if (!adminList.includes(senderID)) {
-      return api.sendMessage("⚠️ هذا الأمر مخصص لـ سـيـنـكـو فقط.", threadID, messageID);
+      return api.sendMessage("🫦", threadID, messageID);
     }
 
     api.setMessageReaction("❄️", messageID, (err) => {}, true);
 
-    // إرسال رسالة الانتظار أولاً (الميزة اللي رجعناها)
-    const waitingMsg = await api.sendMessage(
-      '> ˼⌛˹↜ جـاري جـلـب الـبـيـانـات ↶\nـ\n❊\n',
-      threadID
-    );
-    const processingID = waitingMsg.messageID;
-
     try {
+      // حساب وقت التشغيل (Uptime)
       const uptimeSeconds = process.uptime();
       const days = Math.floor(uptimeSeconds / 86400);
       const hours = Math.floor((uptimeSeconds % 86400) / 3600);
       const minutes = Math.floor((uptimeSeconds % 3600) / 60);
+      const seconds = Math.floor(uptimeSeconds % 60);
 
+      // جلب التاريخ والوقت بتوقيت السودان
       const timeNow = moment.tz("Africa/Khartoum");
       const fullDate = timeNow.format("DD / MM / YYYY");
       const dayName = timeNow.locale('ar').format("dddd");
       const timeStr = timeNow.format("hh:mm:ss A");
 
+      // إحصائيات النظام
       const ramUsage = (process.memoryUsage().rss / 1024 / 1024).toFixed(2);
       const totalRam = (os.totalmem() / 1024 / 1024 / 1024).toFixed(2);
       const ping = Math.floor(performance.now() % 1000);
@@ -64,6 +62,7 @@ module.exports = {
         threadCount = threadList.length;
       } catch (e) {}
 
+      // بناء الرسالة بالزخرفة الملكية المطلوبة
       const message = `> ˼⏰˹↜ حـالـة الـنـظـام ↶
 ╮──────────────⟢ـ
 ┆˼🧭˹┊ الـتـاريـخ ↜｢ ${fullDate} ｣
@@ -86,16 +85,13 @@ module.exports = {
 ╯──────────────⟢ـ
 > ˼👤˹↜ الـمـطـوࢪ : SINKO ↶`;
 
-      // التعديل النهائي للرسالة (Edit Message)
-      setTimeout(() => {
-        api.editMessage(message, processingID, () => {
-          api.setMessageReaction("✅", messageID, () => {}, true);
-        });
-      }, 1000);
+      api.sendMessage(message, threadID, () => {
+        api.setMessageReaction("✅", messageID, () => {}, true);
+      }, messageID);
 
     } catch (error) {
       console.error('Uptime error:', error);
-      api.editMessage('❌ فشل استخراج بيانات راندر يا ملك.', processingID);
+      api.sendMessage('❌ حدث خطأ أثناء جلب بيانات راندر.', threadID, messageID);
     }
   },
 };
