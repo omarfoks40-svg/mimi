@@ -107,10 +107,10 @@ module.exports = {
             const adminList = config.adminUIDs || [];
             if (category === "المطور" && !adminList.includes(senderID)) continue;
 
-            msg += `✾˹┊ ⟬ قـسم ${category.toUpperCase()} ⟭\n`;
+            msg += `​❆˹┊ ⟬ قـسم ${category.toUpperCase()} ⟭\n`;
             for (let i = 0; i < cmds.length; i += 3) {
                 const row = cmds.slice(i, i + 3).map(c => `◍ ${c}`).join(" ");
-                msg += `✾˹┊ ${row}\n`;
+                msg += `​❆˹┊ ${row}\n`;
             }
             // إضافة الخط الفاصل بين الأقسام هنا
             msg += `​❆˹┊ ⸻⸻⸻⸻⸻\n`;
