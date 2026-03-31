@@ -93,7 +93,7 @@ module.exports = {
         let msg = `> ˼⏰˹↜ الـتـوقـيـت ↶\n`;
         msg += `╮──────────────⟢ـ\n`;
         msg += `┆˼🧭˹┊ ↜｢ ${dateStr} ｣\n`;
-        msg += `┆˼⚕️˹┊ النـشـاط ↜｢ ${clockStr} ｣\n`;
+        msg += `┆˼❄️˹┊ النـشـاط ↜｢ ${clockStr} ｣\n`;
         msg += `┆˼🌁˹┊ الـيـوم ↜｢ ${dayStr} ｣\n`;
         msg += `┆˼🕕˹┊ الـوقـت ↜｢ ${timeStr} ｣\n`;
         msg += `╯──────────────⟢ـ\n`;
@@ -113,13 +113,13 @@ module.exports = {
                 msg += `✾˹┊ ${row}\n`;
             }
             // إضافة الخط الفاصل بين الأقسام هنا
-            msg += `✾˹┊ ⸻⸻⸻⸻⸻\n`;
-            msg += `✾˹┊\n`;
+            msg += `​❆˹┊ ⸻⸻⸻⸻⸻\n`;
+            msg += `​❆˹┊\n`;
         }
         
         msg += `╯──────────────⟢ـ\n`;
         msg += `┊˼📖˹┊ الإجمالي ↜ ${uniqueCommands.length} أمر\n`;
-        msg += `┊˼🔮˹┊ مساعدة [الأمر] ↜ لتفاصيله\n`;
+        msg += `┊˼❄️˹┊ مساعدة [الأمر] ↜ لتفاصيله\n`;
         msg += `┊˼🪸˹┊ SINKO`;
 
         return api.sendMessage(msg, threadID, messageID);
