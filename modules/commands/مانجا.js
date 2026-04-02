@@ -21,7 +21,7 @@ module.exports = {
     description: 'بحث وقراءة المانجا من MangaMello',
     countDown: 10,
     prefix: true,
-    category: 'entertainment',
+    category: 'الوسئط',
     adminOnly: false 
   },
 
