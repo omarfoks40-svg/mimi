@@ -1,62 +1,70 @@
-const axios = require("axios");
+const axios = require('axios');
+const moment = require("moment-timezone");
 
 module.exports = {
-	config: {
-		name: "تغير",
-		aliases: ["تغيير_الصورة", "setavatar", "avt"],
-		version: "1.3",
-		author: "SINKO", 
-		countDown: 5,
-		role: 2, // للمطور/المالك فقط
-		description: {
-			ar: "تـغـيـيـر بـروفـايـل الـبـوت الـرسمي"
-		},
-		category: "owner",
-		guide: {
-			ar: "{pn} [رابط الصورة] | أو قم بالرد على صورة مكتوباً عليها {pn}"
-				+ "\n╮──────────────⟢ـ\n"
-				+ "┆ 💡 شـرح الإسـتـخدام:\n"
-				+ "┆ 1- رد على صورة بـ {pn}\n"
-				+ "┆ 2- أرسل {pn} مع رابط مباشر\n"
-				+ "┆ 3- {pn} [رابط] [الوصف] [الوقت بالثواني]\n"
-				+ "╯──────────────⟢ـ"
-		}
-	},
+    config: { 
+        name: "تغير", 
+        aliases: ["تغيير_البروفايل"], 
+        version: "1.0.0", 
+        author: "Sinko", 
+        countDown: 10, 
+        role: 2, 
+        category: "owner" 
+    },
 
-	langs: {
-		ar: {
-			cannotGetImage: "> ˼❌˹↜ حـدث خـطأ في جـلب الـصورة مـن الـرابط. ↶",
-			invalidImageFormat: "> ˼⚠️˹↜ الـمـلف الـمـرسل لـيس صـورة صـالحة. ↶",
-			changedAvatar: "> ˼✅˹↜ تـم تـغييـر بـروفايـل aplin بـنجـاح. ↶\n"
-		}
-	},
+    onStart: async function ({ api, event, args }) {
+        const { threadID, messageID, messageReply, attachments } = event;
+        
+        // توقيت السودان زي كود نانو
+        const timeNow = moment.tz("Africa/Khartoum");
+        const timeStr = timeNow.format("hh:mm A");
 
-	onStart: async function ({ message, event, api, args, getLang }) {
-		// تحديد رابط الصورة من الأرجومنت أو الرد أو المرفقات
-		const imageURL = (args[0] || "").startsWith("http") ? args.shift() : event.attachments[0]?.url || event.messageReply?.attachments[0]?.url;
-		const expirationAfter = !isNaN(args[args.length - 1]) ? args.pop() : null;
-		const caption = args.join(" ");
+        let imageURL = "";
+        if (event.type == "message_reply") {
+            imageURL = messageReply.attachments[0]?.url;
+        } else if (attachments && attachments.length != 0) {
+            imageURL = attachments[0].url;
+        } else if (args[0] && args[0].includes("http")) {
+            imageURL = args[0];
+        }
 
-		if (!imageURL) return message.SyntaxError();
+        if (!imageURL) return api.sendMessage("> ˼⚠️˹↜ رد على صورة  عشان أغيرها. ↶", threadID, messageID);
 
-		let response;
-		try {
-			response = await axios.get(imageURL, {
-				responseType: "stream"
-			});
-		} catch (err) {
-			return message.reply(getLang("cannotGetImage"));
-		}
+        api.setMessageReaction("⌛", messageID, () => {}, true);
 
-		if (!response.headers["content-type"].includes("image")) {
-			return message.reply(getLang("invalidImageFormat"));
-		}
+        const waitingBody = `> ˼🖼️˹↜ تـحديث الـمظهر ↶
+╮──────────────⟢ـ
+┆˼⚕️˹┊ الـحـالـة ↜｢جاري الرفع｣
+┆˼🕕˹┊ الـوقـت ↜｢ ${timeStr} ｣
+╯──────────────⟢ـ
+> ˼🌌˹↜  Aplin Bot ↶
+جاري تغيير بروفايل إبلين`;
 
-		response.data.path = "avatar.jpg";
+        api.sendMessage(waitingBody, threadID, async (err, info) => {
+            try {
+                const response = await axios.get(imageURL, { responseType: "stream" });
+                
+                api.changeAvatar(response.data, "", null, (err) => {
+                    if (err) {
+                        api.setMessageReaction("❌", messageID, () => {}, true);
+                        return api.sendMessage(`> ˼❌˹↜ فشل التحديث: ${err.message}`, threadID, messageID);
+                    }
 
-		api.changeAvatar(response.data, caption, expirationAfter ? expirationAfter * 1000 : null, (err) => {
-			if (err) return message.reply(`> ˼❌˹↜ حـدث خـطأ: ${err.message}`);
-			return message.reply(getLang("changedAvatar"));
-		});
-	}
+                    const successBody = `> ˼✅˹↜ تـم الـتـنـفـيـذ ↶
+╮──────────────⟢ـ
+┆˼✨˹┊ الـنـتـيـجـة ↜｢ تـم الـتـغـيـيـر ｣
+┆˼🕕˹┊ الـوقـت ↜｢ ${timeStr} ｣
+╯──────────────⟢ـ
+> ˼⌬˹ مـظهـر إبـلـين الـجديـد جـاهز! ⚖️`;
+
+                    api.sendMessage(successBody, threadID, messageID);
+                    api.setMessageReaction("✅", messageID, () => {}, true);
+                    if (info) api.unsendMessage(info.messageID); // حذف رسالة الانتظار
+                });
+            } catch (e) {
+                api.sendMessage("⚠️ حدث خطأ في السيرفر، جرب صورة تانية.", threadID, messageID);
+                api.setMessageReaction("❌", messageID, () => {}, true);
+            }
+        }, messageID);
+    }
 };
