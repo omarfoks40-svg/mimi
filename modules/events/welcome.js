@@ -6,7 +6,7 @@ const welcomedUsers = new Set();
 module.exports = {
   config: {
     name: 'welcome',
-    version: '4.5',
+    version: '4.7',
     author: 'Edit',
     eventType: ['log:subscribe']
   },
@@ -40,40 +40,37 @@ async function sendGroupWelcome(api, threadID, userIDs, authorID) {
     const threadInfo = await api.getThreadInfo(threadID);
     const mentions = [];
     
-    // إعداد الوقت والتاريخ تلقائياً
+    // إعداد الوقت والتاريخ
     const time = new Date().toLocaleTimeString('ar-EG', { timeZone: 'Africa/Khartoum', hour12: true, hour: '2-digit', minute: '2-digit' });
     const dayName = new Date().toLocaleDateString('ar-EG', { timeZone: 'Africa/Khartoum', weekday: 'long' });
 
-    // جلب معلومات الشخص الذي أضاف الأعضاء
+    // جلب معلومات المضيف
     const authorInfo = await api.getUserInfo(authorID);
     const adderName = authorInfo?.[authorID]?.name || "المسؤول";
     const adderTag = `@${adderName}`;
     mentions.push({ tag: adderTag, id: authorID });
 
-    // --- [ الزخرفة الفخمة المطلوبة ] ---
-    let bodyText = `> ˼⏰˹↜ الـتـرحـيـب الـمـلـكـي ↶\n`;
-    bodyText += `╮──────────────⟢ـ\n`;
-    bodyText += `┆˼👤˹┊ المضيف ↜ ${adderTag}\n`;
-    bodyText += `┆˼🧭˹┊ الـيـوم ↜｢ ${dayName} ｣\n`;
-    bodyText += `┆˼🕕˹┊ الـوقت ↜｢ ${time} ｣\n`;
-    bodyText += `╯──────────────⟢ـ\n`;
-    bodyText += `> ˼🌌˹↜ أعـضـاء جـدد ↶\n`;
-    bodyText += `╮──────────────⟢ـ\n`;
-
+    // --- [ التصميم الفخم الملموم ] ---
+    let bodyText = `> ˼⭐˹ ترحيب APLIN ↶\n`;
+    bodyText += `• ───────────── •\n`;
+    bodyText += `⌈👤⌋ الـمـضـيـف ↜ ${adderTag}\n`;
+    bodyText += `⌈📅⌋ الـتـوقـيـت ↜ ${dayName} | ${time}\n`;
+    bodyText += `• ───────────── •\n`;
+    
     let count = 1;
     for (const id of userIDs) {
       const userInfo = await api.getUserInfo(id);
       const name = userInfo?.[id]?.name || "عضو جديد";
       const tag = `@${name}`;
       
-      bodyText += `​❆˹┊ ${count} ↜ ${tag}\n`;
+      bodyText += `  ⌯ ${count} ⋞ ${tag} ⋟\n`;
       mentions.push({ tag, id });
       count++;
     }
 
-    bodyText += `​❆˹┊ ⸻⸻⸻⸻⸻\n`;
-    bodyText += `┆˼📊˹┊ الإجمالي ↜ ｢ ${threadInfo.participantIDs.length} ｣\n`;
-    bodyText += `╯──────────────⟢ـ\n`;
+    bodyText += `• ───────────── •\n`;
+    bodyText += `⌈📊⌋ الـعـدد الآن ↜ [ ${threadInfo.participantIDs.length} ]\n`;
+    bodyText += `• ───────────── •`;
 
     await api.sendMessage({ body: bodyText, mentions }, threadID);
 
