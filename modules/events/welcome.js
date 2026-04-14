@@ -6,8 +6,8 @@ const welcomedUsers = new Set();
 module.exports = {
   config: {
     name: 'welcome',
-    version: '4.1',
-    author: 'Hridoy + Abu Ubaida Edit',
+    version: '4.5',
+    author: 'Edit',
     eventType: ['log:subscribe']
   },
 
@@ -18,20 +18,16 @@ module.exports = {
       const { threadID, logMessageData, author } = event;
       const botID = api.getCurrentUserID();
 
-      // --- [ التعديل الجديد ] ---
-      // إذا كان الشخص الذي قام بالإضافة هو البوت نفسه، لا يرسل ترحيب
       if (author == botID) return;
-
       if (!logMessageData?.addedParticipants) return;
 
-      // فلترة البوت من الأعضاء الجدد (لو البوت انضاف للمجموعة)
       const newUsers = logMessageData.addedParticipants
         .map(p => p.userFbId)
         .filter(id => id !== botID);
 
       if (!newUsers.length) return;
 
-      await sendGroupWelcome(api, threadID, newUsers);
+      await sendGroupWelcome(api, threadID, newUsers, author);
 
     } catch (error) {
       log('error', `Welcome event error: ${error.message}`);
@@ -39,67 +35,49 @@ module.exports = {
   }
 };
 
-// ==================================
-// إرسال رسالة الترحيب مع منشن رسمي
-// ==================================
-async function sendGroupWelcome(api, threadID, userIDs) {
+async function sendGroupWelcome(api, threadID, userIDs, authorID) {
   try {
     const threadInfo = await api.getThreadInfo(threadID);
-
     const mentions = [];
-    let bodyText = `╭━━〔نـورتـم مــجمـوعـــتنه〕━━╮\n\n`;
+    
+    // إعداد الوقت والتاريخ تلقائياً
+    const time = new Date().toLocaleTimeString('ar-EG', { timeZone: 'Africa/Khartoum', hour12: true, hour: '2-digit', minute: '2-digit' });
+    const dayName = new Date().toLocaleDateString('ar-EG', { timeZone: 'Africa/Khartoum', weekday: 'long' });
+
+    // جلب معلومات الشخص الذي أضاف الأعضاء
+    const authorInfo = await api.getUserInfo(authorID);
+    const adderName = authorInfo?.[authorID]?.name || "المسؤول";
+    const adderTag = `@${adderName}`;
+    mentions.push({ tag: adderTag, id: authorID });
+
+    // --- [ الزخرفة الفخمة المطلوبة ] ---
+    let bodyText = `> ˼⏰˹↜ الـتـرحـيـب الـمـلـكـي ↶\n`;
+    bodyText += `╮──────────────⟢ـ\n`;
+    bodyText += `┆˼👤˹┊ المضيف ↜ ${adderTag}\n`;
+    bodyText += `┆˼🧭˹┊ الـيـوم ↜｢ ${dayName} ｣\n`;
+    bodyText += `┆˼🕕˹┊ الـوقت ↜｢ ${time} ｣\n`;
+    bodyText += `╯──────────────⟢ـ\n`;
+    bodyText += `> ˼🌌˹↜ أعـضـاء جـدد ↶\n`;
+    bodyText += `╮──────────────⟢ـ\n`;
 
     let count = 1;
-
     for (const id of userIDs) {
-      const key = `${id}_${threadID}`;
-      if (welcomedUsers.has(key)) continue;
-
-      welcomedUsers.add(key);
-
-      try {
-        const userInfo = await api.getUserInfo(id);
-        const name = userInfo?.[id]?.name || "عضو جديد";
-        const tag = `@${name}`;
-
-        bodyText += ` ✦ ${count} ➜ ${tag}\n`;
-
-        mentions.push({
-          tag,
-          id
-        });
-
-        count++;
-      } catch (err) {
-        console.error("Error fetching user info:", err);
-      }
+      const userInfo = await api.getUserInfo(id);
+      const name = userInfo?.[id]?.name || "عضو جديد";
+      const tag = `@${name}`;
+      
+      bodyText += `​❆˹┊ ${count} ↜ ${tag}\n`;
+      mentions.push({ tag, id });
+      count++;
     }
 
-    if (!mentions.length) return;
+    bodyText += `​❆˹┊ ⸻⸻⸻⸻⸻\n`;
+    bodyText += `┆˼📊˹┊ الإجمالي ↜ ｢ ${threadInfo.participantIDs.length} ｣\n`;
+    bodyText += `╯──────────────⟢ـ\n`;
 
-    const memberCount = threadInfo.participantIDs.length;
-
-    bodyText += `
-━━━━━━━━━━━━━━━━━━
-👥 عدد الأعضاء الآن : ${memberCount}
-🎉 نتمنى لك أوقات ممتعة معنا
-🤝 شارك – تفاعل – استمتع
-💬 أي استفسار لا تتردد
-
-   ≛ ⇄ 𝐓𝐍𝐗『 𝑾𝒆𝒍𝒄𝒐𝒎𝒆 💫 』
-╰━━━━━━━━━━━━━━━━━━╯`;
-
-    await api.sendMessage(
-      {
-        body: bodyText,
-        mentions
-      },
-      threadID
-    );
-
-    log('info', `Users welcomed with mention in ${threadID}`);
+    await api.sendMessage({ body: bodyText, mentions }, threadID);
 
   } catch (error) {
     log('error', `sendGroupWelcome error: ${error.message}`);
   }
-  }
+}
