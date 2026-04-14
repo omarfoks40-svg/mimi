@@ -125,7 +125,7 @@ module.exports = {
         }, TOTAL_TIMEOUT);
 
         try {
-            api.setMessageReaction("⏳", messageID, () => {}, true);
+            api.setMessageReaction("⚙️", messageID, () => {}, true);
             const magicAi = new MagicAi(null, models);
             const result = await magicAi.Generate(prompt, 27, 0, 0);
 
@@ -142,7 +142,7 @@ module.exports = {
                 fs.remove(cachePath).catch(() => {});
             }, messageID);
 
-            api.setMessageReaction("✅", messageID, () => {}, true);
+            api.setMessageReaction("✔️", messageID, () => {}, true);
 
         } catch (e) {
             clearTimeout(timeout);
