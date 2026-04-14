@@ -25,7 +25,7 @@ module.exports = {
 
     try {
       // تفاعل "ساعة" عند البدء
-      api.setMessageReaction("⏳", messageID, () => {}, true);
+      api.setMessageReaction("⚙️", messageID, () => {}, true);
 
       let targetID = senderID;
       let targetName = "أنت";
@@ -57,7 +57,7 @@ module.exports = {
 
       // الإرسال مع تفاعل النجاح
       return api.sendMessage(msg, threadID, () => {
-        api.setMessageReaction("✅", messageID, () => {}, true);
+        api.setMessageReaction("✔️", messageID, () => {}, true);
       }, messageID);
 
     } catch (err) {
