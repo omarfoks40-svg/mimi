@@ -73,7 +73,7 @@ module.exports = {
         const prompt = args.join(" ");
         if (!prompt) return api.sendMessage("أكتب وصف الصورة ", threadID, messageID);
 
-        api.setMessageReaction("⌛", messageID, () => {}, true);
+        api.setMessageReaction("⚙️", messageID, () => {}, true);
 
         api.sendMessage("⏳ جاري التوليد", threadID, async (err, info) => {
             const cachePath = path.join(__dirname, 'cache', `nano_${Date.now()}.jpg`);
@@ -113,7 +113,7 @@ module.exports = {
                     if (info) api.unsendMessage(info.messageID);
                 }, messageID);
 
-                api.setMessageReaction("✅", messageID, () => {}, true);
+                api.setMessageReaction("✔️", messageID, () => {}, true);
 
             } catch (e) {
                 clearTimeout(timeout);
