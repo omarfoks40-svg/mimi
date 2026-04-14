@@ -34,7 +34,7 @@ module.exports = {
 
     try {
       // تفاعل "انتظار"
-      api.setMessageReaction("⏳", messageID, () => {}, true);
+      api.setMessageReaction("⚙️", messageID, () => {}, true);
 
       // استخدام الـ API الشامل والسريع (Noobs API)
       const apiEndpoint = `https://noobs-api.top/dipto/alldl?url=${encodeURIComponent(url)}`;
@@ -74,12 +74,12 @@ module.exports = {
       }
 
       const msg = {
-        body: `تم التحميل تلقائياً ✅\n\n▸ العنوان: ${data.title || "فيديو"}\n▸ الحجم: ${fileSizeMB} MB`,
+        body: `✅\n\n▸ العنوان: ${data.title || "فيديو"}\n▸ الحجم: ${fileSizeMB} MB`,
         attachment: fs.createReadStream(filePath)
       };
 
       return api.sendMessage(msg, threadID, () => {
-        api.setMessageReaction("✅", messageID, () => {}, true);
+        api.setMessageReaction("✔️", messageID, () => {}, true);
         // "المكنسة الفورية" لمسح الملف بعد الإرسال
         if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
       }, messageID);
