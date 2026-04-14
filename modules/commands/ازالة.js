@@ -23,7 +23,7 @@ module.exports = {
         const path = __dirname + `/cache/removed_bg.png`;
 
         // التفاعل بالساعة لبدء العملية
-        api.setMessageReaction("⏳", event.messageID, (err) => {}, true);
+        api.setMessageReaction("⚙️", event.messageID, (err) => {}, true);
 
         try {
             const response = await axios({
@@ -42,7 +42,7 @@ module.exports = {
             fs.writeFileSync(path, response.data);
 
             // التفاعل بعلامة الصح عند النجاح
-            api.setMessageReaction("✅", event.messageID, (err) => {}, true);
+            api.setMessageReaction("✔️", event.messageID, (err) => {}, true);
 
             await api.sendMessage({
                 body: "✨ تم إزالة الخلفية بنجاح",
