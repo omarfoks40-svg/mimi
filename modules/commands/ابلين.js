@@ -1,23 +1,33 @@
 const axios = require("axios");
+const fs = require("fs-extra");
+const path = require("path");
+
+if (!global.ابلين_mode) { global.ابلين_mode = {}; }
 
 module.exports = {
   config: {
     name: "ابلين",
-    aliases: ["بندلين", "بوت"],
-    version: "6.0.0",
+    aliases: ["بوت"],
+    version: "21.0.0",
     author: "SINKO",
-    description: "ابلين السودانية (ضد اللغة المصرية)",
-    countDown: 5,
+    countDown: 2,
     prefix: false,
-    category: "ai",
-    adminOnly: false
+    category: "ai"
   },
 
   onStart: async function ({ api, event, args }) {
     const { threadID, messageID, senderID } = event;
-    const developerID = "61588108307572"; 
-    const isDev = senderID === developerID;
     const query = args.join(" ").trim();
+    const isDev = senderID === "61588108307572";
+
+    if (query === "اون") {
+        global.ابلين_mode[threadID] = "voice_only";
+        return api.sendMessage("تم تشغيل وضع الصوت 🎤🐱 (بدون كتابة)", threadID, messageID);
+    }
+    if (query === "اوف") {
+        global.ابلين_mode[threadID] = "text_only";
+        return api.sendMessage("تم تشغيل وضع النص 🤐🐬 (بدون صوت)", threadID, messageID);
+    }
 
     if (!query) {
       const stickers = ["422806808355567", "422806995022215", "422807215022193"];
@@ -27,91 +37,67 @@ module.exports = {
     api.setMessageReaction(isDev ? "✨" : "🐬", messageID, () => {}, true);
 
     try {
-      const response = await askDeepAI(query, isDev);
-      return api.sendMessage(response, threadID, (err, info) => {
-        if (!err) {
-          global.client.handleReply.push({
-            name: this.config.name,
-            messageID: info.messageID,
-            author: senderID,
-            isDev
-          });
-        }
-      }, messageID);
-    } catch (error) {
-      return api.sendMessage(isDev ? "يا بابا السيرفر ده راسو كبر 🐱" : "مشغولة.. ما وقتك 🐱", threadID, messageID);
+      const response = await askGroq(query, isDev);
+      const currentMode = global.ابلين_mode[threadID] || "text_only";
+
+      if (currentMode === "voice_only") {
+        return handleVoice(api, event, response);
+      } else {
+        return api.sendMessage(response, threadID, (err, info) => {
+          if (!err) pushReply(info.messageID, senderID);
+        }, messageID);
+      }
+    } catch (e) { 
+      console.error(e);
+      return api.sendMessage("يا بابا الموديل ده جلا، جرب تاني 🐱", threadID, messageID); 
     }
   },
 
-  onReply: async function ({ api, event, handleReply }) {
-    const { body, threadID, messageID, senderID } = event;
+  onReply: async function ({ api, event }) {
+    const { threadID, messageID, senderID, body } = event;
     const isDev = senderID === "61588108307572";
-
     api.setMessageReaction(isDev ? "✨" : "🐬", messageID, () => {}, true);
-
     try {
-      const response = await askDeepAI(body, isDev);
-      return api.sendMessage(response, threadID, (err, info) => {
-        if (!err) {
-          global.client.handleReply.push({
-            name: this.config.name,
-            messageID: info.messageID,
-            author: senderID,
-            isDev
-          });
-        }
-      }, messageID);
-    } catch (error) {
-      return api.sendMessage("حصلت لخبطة.. 🐱", threadID, messageID);
-    }
+      const response = await askGroq(body, isDev);
+      if ((global.ابلين_mode[threadID] || "text_only") === "voice_only") {
+        return handleVoice(api, event, response);
+      } else {
+        api.sendMessage(response, threadID, (err, info) => {
+          if (!err) pushReply(info.messageID, senderID);
+        }, messageID);
+      }
+    } catch (e) { console.error(e); }
   }
 };
 
-async function askDeepAI(query, isDev) {
-  // القواعد الذهبية لمنع المصري والفصحى
-  const sudaneseRules = `
-  - لغتك هي العامية السودانية فقط (لغة الخرطوم والمدن السودانية).
-  - ممنوع نهائياً كلمات مثل: "إيه"، "عشان"، "أوي"، "ده"، "بتاع"، "إزيك".
-  - استخدم بدلها: "شنو"، "عشان كدة"، "شديد"، "دا"، "حقت"، "كيفنك".
-  - نادِ المطور بـ "يا بابا" لو كان هو السائل.
-  - كوني مغرورة جداً مع الآخرين بلهجة سودانية حادة.
-  `;
-
-  const prompt = isDev 
-    ? `أنتِ "ابلين"، بنت المطور سينكو المدللة. ${sudaneseRules} تناديه "يا بابا". دلوعة ومرحة. استخدمي إيموجيات الحيوانات (🐱🐬). ردي باختصار شديد.`
-    : `أنتِ "ابلين"، متغطرسة ومغرورة. ${sudaneseRules} شايفة نفسك فوق الكل. استخدمي إيموجيات الحيوانات (🐱🐬). ردي باختصار ومستفز.`;
-
-  // إجبار الـ API على البدء بكلمة سودانية لضبط النبرة
-  const history = [
-    { role: "system", content: prompt },
-    { role: "user", content: `(تذكري: تحدثي بالسودانية فقط) - السؤال: ${query}` }
-  ];
-
-  const boundary = "----WebKitFormBoundary" + Math.random().toString(36).substring(2);
-  let formData = `--${boundary}\r\nContent-Disposition: form-data; name="chat_style"\r\n\r\nchat\r\n`;
-  formData += `--${boundary}\r\nContent-Disposition: form-data; name="chatHistory"\r\n\r\n${JSON.stringify(history)}\r\n`;
-  formData += `--${boundary}\r\nContent-Disposition: form-data; name="model"\r\n\r\nstandard\r\n`;
-  formData += `--${boundary}--\r\n`;
-
+async function handleVoice(api, event, text) {
+  const pathAudio = path.resolve(__dirname, 'cache', `${event.messageID}.mp3`);
   try {
-    const res = await axios({
-      method: "POST",
-      url: "https://api.deepai.org/hacking_is_a_serious_crime",
-      headers: {
-        "content-type": `multipart/form-data; boundary=${boundary}`,
-        "origin": "https://deepai.org",
-        "user-agent": "Mozilla/5.0"
-      },
-      data: formData
-    });
-
-    let reply = res.data.output || res.data.text || res.data;
-    
-    // فلتر إضافي لو الرد طلع فيه كلمات مصرية (محاولة أخيرة)
-    reply = reply.replace(/ده/g, "دا").replace(/عشان/g, "عشان كدة").replace(/إيه/g, "شنو");
-    
-    return reply.trim();
-  } catch (e) {
-    throw e;
+    const { data } = await axios.get(`https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text)}&tl=ar&client=tw-ob`, { responseType: "arraybuffer" });
+    fs.ensureDirSync(path.join(__dirname, 'cache'));
+    fs.writeFileSync(pathAudio, Buffer.from(data, "utf-8"));
+    return api.sendMessage({ attachment: fs.createReadStream(pathAudio) }, event.threadID, (err, info) => {
+      if (!err) pushReply(info.messageID, event.senderID);
+      if (fs.existsSync(pathAudio)) fs.unlinkSync(pathAudio);
+    }, event.messageID);
+  } catch (e) { 
+    if (fs.existsSync(pathAudio)) fs.unlinkSync(pathAudio);
+    return api.sendMessage(text, event.threadID, event.messageID);
   }
+}
+
+function pushReply(messageID, author) {
+    global.client.handleReply.push({ name: "ابلين", messageID, author });
+}
+
+async function askGroq(query, isDev) {
+  // تحديث الموديل لنسخة Llama-3.3 القوية لحل مشاكل اللغة
+  const res = await axios.post("https://api.groq.com/openai/v1/chat/completions", {
+    model: "llama-3.3-70b-versatile",
+    messages: [
+      { role: "system", content: `أنتِ إبلين، فتاة سودانية. لغتك هي العامية السودانية الحقيقية. ممنوع كلمات (مافيش، هيك، بتاع). لو السائل بابا (${isDev}) كوني رقيقة. لو غريب كوني مستفزة جداً. ردي باختصار.` },
+      { role: "user", content: query }
+    ]
+  }, { headers: { "Authorization": `Bearer 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` } });
+  return res.data.choices[0].message.content;
 }
