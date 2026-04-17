@@ -9,7 +9,7 @@ module.exports = {
         author: "سينكو",
         countDown: 10,
         description: "يرسم الصور بالذكاء الاصطناعي مع دعم اللغة العربية (ترجمة تلقائية).",
-        category: "media",
+        category: "ai",
         prefix: true,
         guide: { ar: "{pn} <وصف الصورة بالعربي أو الإنجليزي>" }
     },
