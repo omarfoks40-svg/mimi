@@ -1,61 +1,63 @@
 const axios = require("axios");
-const FormData = require("form-data");
 
 module.exports = {
   config: {
     name: "رابط",
-    version: "1.0",
-    author: "Gemini AI",
-    role: 0, // متاح للجميع (أو 2 للمطور فقط حسب رغبتك)
-    countDown: 5,
-    category: "ai",
-    guide: "{pn} [قم بالرد على صورة أو إرفاق صورة]"
+    version: "1.0.0",
+    author: "Thiệu Trung Kiên",
+    countDown: 10,
+    description: "رفع الصور إلى موقع Imgur والحصول على رابط مباشر",
+    category: "tools",
+    prefix: true,
+    guide: { ar: "{pn} [قم بالرد على صورة أو مجموعة صور]" }
   },
 
-  onStart: async ({ api, event }) => {
-    const { threadID, messageID, type, messageReply } = event;
+  onStart: async function ({ api, event }) {
+    const { threadID, messageID, messageReply, type } = event;
+    const clientId = "fc9369e9aea767c"; // معرف Imgur الخاص بك
 
-    // ضع مفتاح الـ API الخاص بك هنا
-    const API_KEY = "3963d5cc3ee64b07508b20f76a9e8bbd";
+    const client = axios.create({
+      baseURL: "https://api.imgur.com/3/",
+      headers: {
+        Authorization: `Client-ID ${clientId}`,
+      },
+    });
 
-    // تحديد رابط الصورة (سواء مبعوتة مع الأمر أو رادد عليها)
-    let imageUrl;
-    if (type === "message_reply" && messageReply.attachments[0]?.url) {
-      imageUrl = messageReply.attachments[0].url;
-    } else if (event.attachments[0]?.url) {
-      imageUrl = event.attachments[0].url;
+    const uploadImage = async (url) => {
+      const res = await client.post("image", {
+        image: url,
+      });
+      return res.data.data.link;
+    };
+
+    if (type !== "message_reply" || !messageReply.attachments || messageReply.attachments.length === 0) {
+      return api.sendMessage("⚠️ يرجى الرد على الصورة أو الصور التي تريد رفعها.", threadID, messageID);
     }
 
-    if (!imageUrl) {
-      return api.sendMessage("⚠️ يرجى الرد على صورة أو إرفاق صورة لرفعها.", threadID, messageID);
-    }
+    const links = [];
+    let failCount = 0;
 
-    api.sendMessage("⏳ جاري رفع الصورة إلى ImgBB...", threadID, async (err, info) => {
+    for (const attachment of messageReply.attachments) {
       try {
-        // تحضير البيانات لإرسالها لـ ImgBB
-        const form = new FormData();
-        form.append("image", imageUrl);
-
-        const response = await axios.post(`https://api.imgbb.com/1/upload?key=${API_KEY}`, form, {
-          headers: form.getHeaders(),
-        });
-
-        if (response.data && response.data.status === 200) {
-          const directLink = response.data.data.url;
-          const deleteLink = response.data.data.delete_url;
-
-          return api.sendMessage(
-            `✅ تم الرفع بنجاح!\n\n🔗 الرابط المباشر:\n${directLink}\n\n🗑️ رابط الحذف:\n${deleteLink}`,
-            threadID,
-            messageID
-          );
-        } else {
-          throw new Error("فشل الرفع، استجابة غير متوقعة.");
+        if (attachment.type === "photo" || attachment.type === "animated_image") {
+          const res = await uploadImage(attachment.url);
+          links.push(res);
         }
-      } catch (error) {
-        console.error(error);
-        return api.sendMessage(`❌ حدث خطأ أثناء الرفع:\n${error.message}`, threadID, messageID);
+      } catch (err) {
+        console.error(err);
+        failCount++;
       }
-    }, messageID);
-  }
+    }
+
+    if (links.length === 0) {
+      return api.sendMessage("❌ فشل رفع الصور. تأكد من أن الملفات مدعومة.", threadID, messageID);
+    }
+
+    let msg = `✅ تم الرفع بنجاح!\n\n`;
+    msg += `🔹 عدد الصور الناجحة: ${links.length}\n`;
+    if (failCount > 0) msg += `🔸 عدد الصور الفاشلة: ${failCount}\n`;
+    msg += `\n🔗 الروابط:\n${links.join("\n")}`;
+
+    return api.sendMessage(msg, threadID, messageID);
+  },
 };
