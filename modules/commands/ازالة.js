@@ -18,7 +18,8 @@ module.exports = {
             return api.sendMessage("⚠️ يرجى الرد على الصورة التي تريد إزالة خلفيتها.", event.threadID);
         }
 
-        const apiKey = "CNYjGk9RRUB6XRmP4UsuceoU"; 
+        // المفتاح الجديد الخاص بك
+        const apiKey = "HFFKEPxm9Ytaxh2VUdJE2K8f"; 
         const imageUrl = event.messageReply.attachments[0].url;
         const path = __dirname + `/cache/removed_bg.png`;
 
@@ -55,7 +56,7 @@ module.exports = {
             console.error(error);
             // التفاعل بعلامة الخطأ في حال الفشل
             api.setMessageReaction("❌", event.messageID, (err) => {}, true);
-            api.sendMessage("❌ حدث خطأ! تأكد من رصيد المفتاح أو جودة الصورة.", event.threadID);
+            api.sendMessage("❌ حدث خطأ! قد يكون الرصيد انتهى أو الصورة غير صالحة.", event.threadID);
         }
     }
 };
