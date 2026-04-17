@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const axios = require('axios');
 const moment = require("moment-timezone");
 
 const configPath = path.join(__dirname, '..', '..', 'config', 'config.json');
@@ -112,7 +113,6 @@ module.exports = {
                 const row = cmds.slice(i, i + 3).map(c => `◍ ${c}`).join(" ");
                 msg += `​❆˹┊ ${row}\n`;
             }
-            // إضافة الخط الفاصل بين الأقسام هنا
             msg += `​❆˹┊ ⸻⸻⸻⸻⸻\n`;
             msg += `​❆˹┊\n`;
         }
@@ -122,6 +122,16 @@ module.exports = {
         msg += `┊˼❄️˹┊ مساعدة [الأمر] ↜ لتفاصيله\n`;
         msg += `┊˼🪸˹┊ SINKO`;
 
-        return api.sendMessage(msg, threadID, messageID);
+        // تعديل الإرسال ليشمل الصورة
+        try {
+            const imgStream = (await axios.get('https://i.ibb.co/BmHbQfF/1776302441193.png', { responseType: 'stream' })).data;
+            return api.sendMessage({
+                body: msg,
+                attachment: imgStream
+            }, threadID, messageID);
+        } catch (err) {
+            // في حال فشل تحميل الصورة، يتم إرسال النص فقط
+            return api.sendMessage(msg, threadID, messageID);
+        }
     }
 };
