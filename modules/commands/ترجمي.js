@@ -7,7 +7,7 @@ module.exports = {
     version: "1.2.0",
     author: "Sinko",
     role: 0,
-    category: "عشوائي"
+    category: "ai"
   },
 
   onStart: async function ({ api, event, args }) {
