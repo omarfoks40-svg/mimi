@@ -19,11 +19,11 @@ module.exports = {
         let query = args.join(" ").trim();
 
         if (!query) {
-            return api.sendMessage("⏣ ◍ يا سنيور.. أكتب وصف للصورة (عادي أكتب بالعربي)! 🙄", threadID, messageID);
+            return api.sendMessage("الوصف؟ ", threadID, messageID);
         }
 
         api.setMessageReaction("⚙️", messageID, () => {}, true);
-        const waitMsg = await api.sendMessage("", threadID);
+        const waitMsg = await api.sendMessage("⏳", threadID);
 
         try {
             // --- مرحلة الترجمة التلقائية ---
