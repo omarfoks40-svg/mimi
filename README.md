@@ -1,5 +1,5 @@
-<img src="https://i.ibb.co/FZCHwt9/received-1740662803574945.webp" alt="banner">
-<h1 align="center"><img src="https://i.ibb.co/JjKXd0cS/1772656304635.jpg" width="30px">ابلين - بوت شات ماسنجر</h1>
+<img src="https://i.ibb.co/9kJnP9F6/1776644012884.png" alt="banner">
+<h1 align="center"><img src="https://i.ibb.co/9kJnP9F6/1776644012884.png" width="30px">ابلين - بوت شات ماسنجر</h1>
 
 <p align="center">
   <a href="https://github.com/1dev-hridoy/Kenji-Cloud"><img src="https://img.shields.io/github/stars/1dev-hridoy/Kenji-Cloud?color=green" /></a>
