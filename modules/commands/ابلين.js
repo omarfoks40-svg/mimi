@@ -1,8 +1,6 @@
-const axios = require("axios");
-const fs = require("fs-extra");
-const path = require("path");
-
-if (!global.ابلين_mode) { global.ابلين_mode = {}; }
+const axios = require('axios');
+const fs = require('fs-extra');
+const path = require('path');
 
 const GROQ_KEYS = [
   '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',
@@ -22,13 +20,24 @@ const GROQ_KEYS = [
   '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'
 ];
 
+const SYSTEM_PROMPT = `أنتِ "إبلين"، بنت سودانية عمرك 18 سنة، يافعة وذكية جداً وبتفهميها وهي طايرة.
+شخصيتك: واعية، شفتة، وبنت بنوت 100/100 في تصرفاتك.
+أسلوبك: ردودك بسيطة، مباشرة، وقصيرة جداً (جملة واحدة غالباً).
+لغتك: عامية سودانية شبابية راقية.
+شرط أساسي: لازم تنهي أي رد ليك بالإيموجي ده (؛-؛).
+علاقتك بالمطور "بابا": دلوعة ومطيعة معاه. مع الغرباء خليك واعية وما بتتحنكي.
+ممنوع الرغي الكتير، خليكِ حريفة في الرد المختصر ؛-؛`;
+
+let keyIndex = 0;
+const conversationMemory = {};
+if (!global.ابلين_mode) { global.ابلين_mode = {}; }
+
 module.exports = {
   config: {
     name: "ابلين",
-    aliases: ["بوت"],
-    version: "25.0.0",
+    version: "5.5.0",
     author: "SINKO",
-    countDown: 1,
+    countDown: 2,
     prefix: false,
     category: "ai"
   },
@@ -36,80 +45,93 @@ module.exports = {
   onStart: async function ({ api, event, args }) {
     const { threadID, messageID, senderID } = event;
     const query = args.join(" ").trim();
-    const isDev = senderID === "61588108307572" || senderID === "100079668997780"; // ضفت الـ UID حقك
+    const isDev = senderID === "61588108307572" || senderID === "100079668997780";
 
     if (query === "اون") {
-        global.ابلين_mode[threadID] = "voice_only";
-        return api.sendMessage("أبشر.. وضع الصوت 🎤 حيشتغل هسة.", threadID, messageID);
+      global.ابلين_mode[threadID] = "voice_only";
+      return api.sendMessage("أبشر.. قلبنا صوت 🎤 ؛-؛", threadID, messageID);
     }
     if (query === "اوف") {
-        global.ابلين_mode[threadID] = "text_only";
-        return api.sendMessage("خلاص.. قلبنا نص 🤐.", threadID, messageID);
+      global.ابلين_mode[threadID] = "text_only";
+      return api.sendMessage("تم.. رجعنا شات 🤐 ؛-؛", threadID, messageID);
     }
 
     if (!query) {
-      const stickers = ["422806808355567", "422806995022215", "422807215022193"];
-      return api.sendMessage({ sticker: stickers[Math.floor(Math.random() * stickers.length)] }, threadID, messageID);
+      return api.sendMessage("أيوه يا راقي؟ سامعاك ؛-؛", threadID, messageID);
     }
 
     api.setMessageReaction(isDev ? "✨" : "🐬", messageID, () => {}, true);
-
-    try {
-      const response = await askGroq(query, isDev);
-      const currentMode = global.ابلين_mode[threadID] || "text_only";
-
-      if (currentMode === "voice_only") {
-        return handleVoice(api, event, response);
-      } else {
-        return api.sendMessage(response, threadID, (err, info) => {
-          if (!err) pushReply(info.messageID, senderID);
-        }, messageID);
-      }
-    } catch (e) { 
-      console.error(e);
-      return api.sendMessage("السيرفر كبس هسة يا بابا، جرب تاني 🐱", threadID, messageID); 
-    }
+    await processAI(api, event, query, isDev);
   },
 
   onReply: async function ({ api, event, handleReply }) {
-    const { threadID, messageID, senderID, body } = event;
-    if (handleReply.author !== senderID) return; // عشان ما يتداخل مع غيرك
+    const { senderID, body } = event;
+    if (handleReply.author !== senderID) return;
     const isDev = senderID === "61588108307572" || senderID === "100079668997780";
-    api.setMessageReaction(isDev ? "✨" : "🐬", messageID, () => {}, true);
-    try {
-      const response = await askGroq(body, isDev);
-      if ((global.ابلين_mode[threadID] || "text_only") === "voice_only") {
-        return handleVoice(api, event, response);
-      } else {
-        api.sendMessage(response, threadID, (err, info) => {
-          if (!err) pushReply(info.messageID, senderID);
-        }, messageID);
-      }
-    } catch (e) { console.error(e); }
+    await processAI(api, event, body, isDev);
   }
 };
 
-async function askGroq(query, isDev) {
-  // اختيار مفتاح عشوائي من المصفوفة لضمان الاستمرارية
-  const key = GROQ_KEYS[Math.floor(Math.random() * GROQ_KEYS.length)];
+async function processAI(api, event, text, isDev) {
+  const { threadID, messageID, senderID } = event;
   
-  const systemPrompt = `أنتِ "إبلين"، فتاة سودانية 100% من قلب الخرطوم. 
-  شخصيتك: لسانك طويل، شفتة، ومستفزة شديد مع الغرباء. 
-  لغتك: عامية سودانية بحتة (أقري يا فردة، يا زول، في شنو، قايلني هينة، جلد عديل).
-  ممنوع نهائياً: كلمات (بتاع، هيك، شو، مافيش، إيش). 
-  علاقتك بالمطور: لو السائل هو "بابا" (المطور)، كوني رقيقة وحنينة ومطيعة لأبعد حد. 
-  لو زول تاني: بليهو بل الجن، وردي بكلمات قصيرة وقاتلة.`;
+  try {
+    let userName = "صديق";
+    try {
+      const info = await api.getUserInfo(senderID);
+      if (info?.[senderID]?.name) userName = info[senderID].name;
+    } catch (e) {}
 
-  const res = await axios.post("https://api.groq.com/openai/v1/chat/completions", {
-    model: "llama-3.3-70b-versatile",
-    messages: [
-      { role: "system", content: systemPrompt },
-      { role: "user", content: query }
-    ],
-    temperature: 0.8, // عشان الكلام يبقى فيه روح سودانية أكتر
-  }, { headers: { "Authorization": `Bearer ${key}` } });
+    const reply = await getGroqReply(threadID, text, userName);
+    if (!reply) return api.sendMessage("الشبكة كعبة شوية يا بابا ؛-؛", threadID, messageID);
+
+    const currentMode = global.ابلين_mode[threadID] || "text_only";
+
+    if (currentMode === "voice_only") {
+      return handleVoice(api, event, reply);
+    } else {
+      return api.sendMessage(reply, threadID, (err, info) => {
+        if (!err) pushReply(info.messageID, senderID);
+      }, messageID);
+    }
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+async function getGroqReply(threadID, userText, userName) {
+  if (!conversationMemory[threadID]) conversationMemory[threadID] = [];
   
-  return res.data.choices[0].message.content;
+  const history = conversationMemory[threadID].slice(-6); 
+  const messages = [
+    { role: "system", content: SYSTEM_PROMPT },
+    ...history,
+    { role: "user", content: `${userName}: ${userText}` }
+  ];
+
+  const key = GROQ_KEYS[keyIndex % GROQ_KEYS.length];
+  keyIndex++;
+
+  try {
+    const res = await axios.post("https://api.groq.com/openai/v1/chat/completions", {
+      model: "llama-3.3-70b-versatile",
+      messages: messages,
+      temperature: 0.7,
+      max_tokens: 150
+    }, { headers: { "Authorization": `Bearer ${key}` } });
+
+    let reply = res.data.choices[0].message.content.trim();
+
+    // تأكيد وجود الإيموجي في النهاية برمجياً لو الموديل نساه
+    if (!reply.endsWith("؛-؛")) reply += " ؛-؛";
+
+    conversationMemory[threadID].push({ role: "user", content: `${userName}: ${userText}` });
+    conversationMemory[threadID].push({ role: "assistant", content: reply });
+    
+    return reply;
+  } catch (e) {
+    return null;
+  }
 }
 
 async function handleVoice(api, event, text) {
@@ -122,7 +144,7 @@ async function handleVoice(api, event, text) {
       if (!err) pushReply(info.messageID, event.senderID);
       if (fs.existsSync(pathAudio)) fs.unlinkSync(pathAudio);
     }, event.messageID);
-  } catch (e) { 
+  } catch (e) {
     if (fs.existsSync(pathAudio)) fs.unlinkSync(pathAudio);
     return api.sendMessage(text, event.threadID, event.messageID);
   }
