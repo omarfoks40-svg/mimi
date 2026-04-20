@@ -19,10 +19,10 @@ module.exports = {
       if (!addedParticipants.some(user => user.userFbId === botID)) return;
 
       const botName = global.client.config.botName || ' 𝕒𝕡𝕝𝕚𝕟';
-      const prefix = global.client.config.prefix || '/';
+      const prefix = global.client.config.prefix || '';
 
       // تغيير الكنية (تعديل الزخرفة فقط للأقواس المجهرية والعمود المقطع والوردة خارجاً)
-      const shortNickname = `⏳┇ ❨ ${prefix} ❩ 𝙰𝚙𝚕𝚒𝚗 𝙱𝚘𝚝 𝙾𝚏 𝚃𝚒𝚖𝚎 `;
+      const shortNickname = `✅┇  ${prefix}  𝙰𝚙𝚕𝚒𝚗  `;
       api.changeNickname(shortNickname, event.threadID, botID);
 
       // زخرفة الترحيب (تطبيق النمط الملكي الجديد: الزهور خارج الأعمدة)
@@ -36,7 +36,7 @@ module.exports = {
 ✾ ┇      ˗ˏˋ S I N K O   ´ˎ˗`;
 
       const imgPath = __dirname + "/cache/bot_join.jpg";
-      const imgUrl = "https://i.ibb.co/BmHbQfF/1776302441193.png";
+      const imgUrl = "https://i.ibb.co/9kJnP9F6/1776644012884.png";
 
       // تحميل الصورة وإرسالها (نفس الدالة الأصلية بدون تغيير)
       const response = await axios.get(imgUrl, { responseType: "arraybuffer" });
