@@ -7,10 +7,10 @@ module.exports = {
     name: "قراءة",
     aliases: ["انمي", "عنوان", "ما_هذا"],
     version: "1.6.2",
-    author: "ايهاب & SINKO",
+    author: " & SINKO",
     countDown: 5,
     prefix: false,
-    category: "الوسائط︙⛩️"
+    category: "media"
   },
 
   onStart: async function ({ api, event, args }) {
@@ -22,10 +22,10 @@ module.exports = {
 
       if (!imageUrl && args[0]) imageUrl = args[0];
 
-      if (!imageUrl) return send("✵───── ⋆⋅☆⋅⋆ ─────✵\n❏ يرجى الرد على صورة أو إرسال رابط للتعرف على الأنمي💡\n✵───── ⋆⋅☆⋅⋆ ─────✵ ؛-؛");
+      if (!imageUrl) return send("\n❏ يرجى الرد على صورة\n");
 
       api.setMessageReaction("🔍", messageID, () => {}, true);
-      send("✵───── ⋆⋅☆⋅⋆ ─────✵\n❏ جاري البحث عن عنوان الأنمي من الصورة... ⏳\n✵───── ⋆⋅☆⋅⋆ ─────✵ ؛-؛");
+      send("\n❏ جاري البحث عن عنوان الأنمي من الصورة... ⏳\n");
 
       // 1. جلب بيانات الصورة
       const resImg = await axios.get(imageUrl, { responseType: 'arraybuffer' });
