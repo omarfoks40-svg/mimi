@@ -52,7 +52,7 @@ const handleCommand = async ({ message, args, event, api, Users, Threads, comman
     // --- التعديل هنا ---
     // إذا كان وضع الأدمن فقط مفعل والمستخدم ليس أدمن، يتفاعل بـ ❌ بدلاً من إرسال رسالة
     if (global.client.config.adminOnlyMode && !hasPermission(event.senderID, { adminOnly: true })) {
-      return api.setMessageReaction("❌", event.messageID, (err) => {}, true);
+      return api.setMessageReaction("❎", event.messageID, (err) => {}, true);
     }
     // ------------------
 
