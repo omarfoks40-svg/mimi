@@ -6,21 +6,20 @@ module.exports = {
   config: {
     name: 'بنتراست',
     aliases: ['بنترست', 'صورة'],
-    version: '2.7.0',
+    version: '2.8.0',
     author: 'SINKO',
     countDown: 5,
     prefix: true,
     category: 'media',
-    description: '10 صور بنترست - نسخة إصلاح الاستجابة'
+    description: '10 صور بنترست - مع إصلاح التفاعل'
   },
 
   onStart: async function ({ api, event, args }) {
     const { threadID, messageID, senderID } = event;
     const query = args.join(" ");
-    if (!query) return api.sendMessage("🔍| أكتب اسم الصورة يا ملك!", threadID, messageID);
+    if (!query) return api.sendMessage("🔍| أكتب اسم الصورة يا ملك! ؛-؛", threadID, messageID);
 
     const keySearch = query.includes('-') ? query.substr(0, query.indexOf('-')).trim() : query;
-    // استدعاء الدالة مباشرة من الموديول
     return module.exports.sendImages(api, event, keySearch, 10, 0);
   },
 
@@ -31,9 +30,11 @@ module.exports = {
     try {
       const res = await axios.get(`https://pinterest-ashen.vercel.app/api?search=${encodeURIComponent(keySearch)}`);
       const data = res.data.data || [];
-      if (data.length === 0) return api.sendMessage("⚠️ لم يتم العثور على صور.", threadID, messageID);
+      if (data.length === 0) return api.sendMessage("⚠️ ما لقيت صور للأسف ؛-؛", threadID, messageID);
 
       const imagesToDownload = data.slice(offset, offset + limit);
+      if (imagesToDownload.length === 0) return api.sendMessage("⚠️ دي أخر صور لقيتها ؛-؛", threadID, messageID);
+
       await fs.ensureDir(cacheDir);
       const imgData = [];
 
@@ -46,17 +47,19 @@ module.exports = {
         } catch (e) { continue; }
       }
 
-      const bodyMsg = `●─────── ⌬ ───────●\n┇ ⦿ ⟬ بـنـتـراسـت ⟭\n┇\n┇ الـبـحث: ${keySearch}\n┇ الـعدد: ${imgData.length}\n┇\n┇ 💡 رد بـ "مزيد" أو تـفـاعـل بـ ❤️\n●─────── ⌬ ───────●`;
+      const bodyMsg = `●─────── ⌬ ───────●\n┇ ⦿ ⟬ بـنـتـراسـت ⟭\n┇\n┇ الـبـحث: ${keySearch}\n┇ الـعدد: ${imgData.length}\n┇\n┇ 💡 تفاعل بـ ❤️ أو رد بـ "مزيد" ؛-؛\n●─────── ⌬ ───────●`;
 
       return api.sendMessage({ body: bodyMsg, attachment: imgData }, threadID, (err, info) => {
-        fs.remove(cacheDir);
-        if (global.client) {
+        // حذف الكاش بعد الإرسال
+        setTimeout(() => fs.remove(cacheDir), 5000); 
+
+        if (!err && global.client) {
             const dataObj = {
-                name: "بنتراست", // تأكد من مطابقة الاسم هنا
+                name: module.exports.config.name,
                 messageID: info.messageID,
                 author: senderID,
                 keySearch: keySearch,
-                offset: offset + 10
+                offset: offset + limit
             };
             global.client.handleReply.push(dataObj);
             global.client.handleReaction.push(dataObj);
@@ -65,7 +68,7 @@ module.exports = {
 
     } catch (error) {
       console.error(error);
-      return api.sendMessage("❌ فشل السيرفر في جلب الصور.", threadID, messageID);
+      return api.sendMessage("❌ السيرفر واقع حالياً، جرب شوية كدا ؛-؛", threadID, messageID);
     }
   },
 
@@ -73,8 +76,7 @@ module.exports = {
     const { body, threadID, messageID, senderID } = event;
     if (handleReply.author != senderID) return;
 
-    if (body.toLowerCase() === "مزيد" || body === "المزيد" || body === "مزيد") {
-      // تغيير الاستدعاء من this إلى module.exports
+    if (body.toLowerCase().includes("مزيد")) {
       return module.exports.sendImages(api, event, handleReply.keySearch, 10, handleReply.offset);
     }
   },
@@ -82,8 +84,10 @@ module.exports = {
   onReaction: async function ({ api, event, handleReaction }) {
     const { reaction, userID, threadID, messageID } = event;
     if (userID != handleReaction.author) return;
-    if (reaction === "❤") {
-      // تغيير الاستدعاء من this إلى module.exports
+
+    // ميزة التفاعل: يقبل القلب الأحمر أو القلب المتوهج
+    if (reaction === "❤" || reaction === "❤️" || reaction === "🦧") {
+      api.unsendMessage(handleReaction.messageID); // حذف القديمة عشان الزحمة
       return module.exports.sendImages(api, event, handleReaction.keySearch, 10, handleReaction.offset);
     }
   }
