@@ -4,33 +4,12 @@ const login = require('fca-priyansh');
 const { loadCommands, handleCommand } = require('./handler/command');
 const handleEvent = require('./handler/event');
 const { handleMessage } = require('./handler/message');
+const handleReaction = require('./handler/reaction');
 const { log } = require('./logger/logger');
 const config = require('./config/config.json');
-const chalk = require('chalk');
-const axios = require('axios');
 
 const app = express();
 app.use(express.static('public'));
-
-// --- [ بداية الجزء المعدل لضمان استقرار Render ] ---
-const port = process.env.PORT || 5000;
-app.get('/', (req, res) => {
-  res.send('Aplin Bot is running perfectly! 🚀');
-});
-
-app.listen(port, '0.0.0.0', () => {
-  log('info', `Web server running on port ${port}`);
-});
-
-// إرسال طلب لنفسه كل 5 دقائق لمنع وضع النوم
-setInterval(async () => {
-  try {
-    await axios.get(`http://localhost:${port}`);
-  } catch (e) {
-    // تجاهل الأخطاء
-  }
-}, 300000);
-// --- [ نهاية الجزء المعدل ] ---
 
 app.get('/config', (req, res) => {
   res.json(config);
@@ -39,6 +18,9 @@ app.get('/config', (req, res) => {
 app.get('/command-count', (req, res) => {
   res.json({ count: global.client && global.client.commands ? global.client.commands.size : 0 });
 });
+
+const chalk = require('chalk');
+const axios = require('axios');
 
 const gradient = chalk.bold.green;
 
@@ -49,6 +31,7 @@ const initializeBot = async () => {
   console.log(chalk.bold.cyan('Loading commands...'));
 
   try {
+
     if (!fs.existsSync('./appstate.json')) {
       log('error', 'appstate.json not found. Please provide a valid appstate.json file.');
       process.exit(1);
@@ -58,6 +41,7 @@ const initializeBot = async () => {
       log('error', 'appstate.json is invalid or empty.');
       process.exit(1);
     }
+
 
     let attempts = 0;
     const maxAttempts = 3;
@@ -82,10 +66,13 @@ const initializeBot = async () => {
       }
     }
 
+
     api.setOptions({ listenEvents: true, selfListen: true, forceLogin: true });
+
 
     global.client = {
       handleReply: [],
+      handleReaction: [],
       commands: new Map(),
       events: new Map(),
       config: config 
@@ -97,8 +84,10 @@ const initializeBot = async () => {
       log('info', `Added ownerUID ${global.client.config.ownerUID} to adminUIDs.`);
     }
 
+
     const commands = loadCommands();
     commands.forEach((cmd, name) => global.client.commands.set(name, cmd));
+
 
     api.listenMqtt(async (err, event) => {
       if (err) {
@@ -107,6 +96,8 @@ const initializeBot = async () => {
       }
       if (event.type === 'event') {
         await handleEvent(event, api);
+      } else if (event.type === 'message_reaction') {
+        await handleReaction(event, api);
       } else if (event.type === 'message' || event.type === 'message_reply') {
         await handleEvent(event, api);
         const time = new Date().toLocaleTimeString();
@@ -120,13 +111,16 @@ const initializeBot = async () => {
         }
 
         console.log(gradient(`[${time}] [${messageType}] ${content}`));
+
         await handleMessage(event, api, commands);
       }
     });
 
+
     log('info', 'Bot initialized successfully');
     global.botStartTime = Date.now(); 
 
+  
     if (fs.existsSync('./restart.json')) {
       const restartInfo = fs.readJsonSync('./restart.json');
       const restartTime = (Date.now() - restartInfo.startTime) / 1000;
@@ -134,6 +128,7 @@ const initializeBot = async () => {
       fs.removeSync('./restart.json');
     }
 
+ 
     process.on('SIGINT', () => {
       log('info', 'Bot stopped by user (Ctrl+C)');
       process.exit(0);
@@ -145,12 +140,10 @@ const initializeBot = async () => {
   }
 };
 
-process.on('unhandledRejection', (reason) => {
-  log('error', `Unhandled Promise Rejection: ${reason && reason.message ? reason.message : reason}`);
-});
 
-process.on('uncaughtException', (err) => {
-  log('error', `Uncaught Exception: ${err.message}`);
+const port = process.env.PORT || 5000;
+app.listen(port, '0.0.0.0', () => {
+  log('info', `Web server running on port ${port}`);
 });
 
 fs.removeSync('./PriyanshFca.json');
