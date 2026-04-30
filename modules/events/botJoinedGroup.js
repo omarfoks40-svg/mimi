@@ -36,7 +36,7 @@ module.exports = {
 ✾ ┇      ˗ˏˋ S I N K O   ´ˎ˗`;
 
       const imgPath = __dirname + "/cache/bot_join.jpg";
-      const imgUrl = "https://i.ibb.co/9kJnP9F6/1776644012884.png";
+      const imgUrl = "https://i.ibb.co/Gf0jJr6F/1777544849126.png";
 
       // تحميل الصورة وإرسالها (نفس الدالة الأصلية بدون تغيير)
       const response = await axios.get(imgUrl, { responseType: "arraybuffer" });
