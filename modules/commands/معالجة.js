@@ -21,7 +21,7 @@ module.exports = {
     try {
       // حماية: السماح للمطور فقط
       if (event.senderID !== DEVELOPER_ID) {
-        return api.sendMessage('❌ هذا الأمر خاص بالمطور فقط.', event.threadID);
+        return api.sendMessage('❎ دن.', event.threadID);
       }
 
       // التحقق من المدخلات
@@ -39,15 +39,15 @@ module.exports = {
         global.client.config.adminOnlyMode = true;
         
         // تغيير كنية البوت عند التشغيل
-        api.changeNickname("ابـــلـين ╿ 🚯", event.threadID, botID);
+        api.changeNickname("𝙰𝙱𝙸𝙻𝙴𝙽 𝙸𝙻  ╿ ❎", event.threadID, botID);
         
-        api.sendMessage("تم تفعيل وضع المشرف فقط ╿ 🚯", event.threadID);
+        api.sendMessage("تم ✔️", event.threadID);
       } 
       else if (state === 'ايقاف') {
         global.client.config.adminOnlyMode = false;
         
         // تغيير كنية البوت عند الإيقاف
-        api.changeNickname("ابـــلـين ╿ ⭕", event.threadID, botID);
+        api.changeNickname("𝙰𝙱𝙸𝙻𝙴𝙽 𝙸𝙻  ╿ ✔️", event.threadID, botID);
         
         api.sendMessage("تم إيقاف وضع المشرف (البوت متاح للجميع) ╿ ⭕", event.threadID);
       } 
