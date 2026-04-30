@@ -36,8 +36,8 @@ module.exports = {
       Threads.set(threadID, threadData);
 
       // --- الميزة الجديدة: تغيير كنية البوت بالورود ---
-      const botName = "𝙰𝚙𝚕𝚒𝚗 𝙱𝚘𝚝 𝙾𝚏 𝚃𝚒𝚖𝚎"; 
-      const newNickname = newPrefix === '' ? `⏳ ┇ ❨ / ❩ ${botName}` : `✅ ┇  ❨${newPrefix}❩  ${botName}`;
+      const botName = "𝙰𝙱𝙸𝙻𝙴𝙽 𝙸𝙻  ✎"; 
+      const newNickname = newPrefix === '' ? `✔️ ┇ ${botName}` : `✔️ ┇  ❨${newPrefix}❩  ${botName}`;
       
       await api.changeNickname(newNickname, threadID, botID);
 
