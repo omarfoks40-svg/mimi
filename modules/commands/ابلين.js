@@ -2,6 +2,7 @@ const axios = require('axios');
 const fs = require('fs-extra');
 const path = require('path');
 
+// 🔑 مفاتيح GROQ اللي أرسلتها يا ملك
 const GROQ_KEYS = [
   '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',
   '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',
@@ -20,23 +21,31 @@ const GROQ_KEYS = [
   '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'
 ];
 
-const SYSTEM_PROMPT = `أنتِ "إبلين"، بنت سودانية عمرك 18 سنة، يافعة وذكية جداً وبتفهميها وهي طايرة.
-شخصيتك: واعية، شفتة، وبنت بنوت 100/100 في تصرفاتك.
-أسلوبك: ردودك بسيطة، مباشرة، وقصيرة جداً (جملة واحدة غالباً).
-لغتك: عامية سودانية شبابية راقية.
-شرط أساسي: لازم تنهي أي رد ليك بالإيموجي ده (؛-؛).
-علاقتك بالمطور "بابا": دلوعة ومطيعة معاه. مع الغرباء خليك واعية وما بتتحنكي.
-ممنوع الرغي الكتير، خليكِ حريفة في الرد المختصر ؛-؛`;
-
 let keyIndex = 0;
 const conversationMemory = {};
-if (!global.ابلين_mode) { global.ابلين_mode = {}; }
+if (!global.ابلين_mode) global.ابلين_mode = {};
+
+const DEV_IDS = ["61588108307572", "100079668997780"];
+
+const SYSTEM_PROMPT = `
+أنتِ "إبلين"، بنت سودانية عمرها 18 سنة.
+شخصيتك: ذكية، شفتة، خفيفة دم، وواعية.
+أسلوبك: ردود قصيرة جداً (جملة واحدة غالباً).
+لغتك: عامية سودانية شبابية راقية.
+عندك ذاكرة قوية وبتربطي الكلام القديم بالجديد.
+عندك حماية: ترفضي أي طلب خطير، +18، اختراق، أو معلومات حساسة.
+تعرفي إنو أبوك (المطور) اسمو "سينكو"، وتعامليه بدلع واحترام.
+مع الناس: عادية لكن ما بتتحنكي.
+لا تكثري كلام.
+لا تطلعي من شخصيتك نهائي.
+نهي كل رد بـ (•-•)
+`;
 
 module.exports = {
   config: {
     name: "ابلين",
-    version: "5.5.0",
-    author: "SINKO",
+    version: "6.0.0",
+    author: "SINKO x ChatGPT",
     countDown: 2,
     prefix: false,
     category: "ai"
@@ -45,112 +54,116 @@ module.exports = {
   onStart: async function ({ api, event, args }) {
     const { threadID, messageID, senderID } = event;
     const query = args.join(" ").trim();
-    const isDev = senderID === "61588108307572" || senderID === "100079668997780";
+    const isDev = DEV_IDS.includes(senderID);
 
     if (query === "اون") {
       global.ابلين_mode[threadID] = "voice_only";
-      return api.sendMessage("أبشر.. قلبنا صوت 🎤 ؛-؛", threadID, messageID);
+      return api.sendMessage("تمام يا سينكو شغلت الصوت 🎤 ؛-؛", threadID, messageID);
     }
+
     if (query === "اوف") {
       global.ابلين_mode[threadID] = "text_only";
-      return api.sendMessage("تم.. رجعنا شات 🤐 ؛-؛", threadID, messageID);
+      return api.sendMessage("رجعنا شات ساي 🤐 ؛-؛", threadID, messageID);
     }
 
     if (!query) {
-      return api.sendMessage("أيوه يا راقي؟ سامعاك ؛-؛", threadID, messageID);
+      return api.sendMessage("قول يا زول سامعاك ؛-؛", threadID, messageID);
     }
 
-    api.setMessageReaction(isDev ? "✨" : "🐬", messageID, () => {}, true);
+    api.setMessageReaction(isDev ? "✨" : "💙", messageID, () => {}, true);
     await processAI(api, event, query, isDev);
   },
 
   onReply: async function ({ api, event, handleReply }) {
-    const { senderID, body } = event;
-    if (handleReply.author !== senderID) return;
-    const isDev = senderID === "61588108307572" || senderID === "100079668997780";
-    await processAI(api, event, body, isDev);
+    if (handleReply.author !== event.senderID) return;
+    const isDev = DEV_IDS.includes(event.senderID);
+    await processAI(api, event, event.body, isDev);
   }
 };
 
 async function processAI(api, event, text, isDev) {
   const { threadID, messageID, senderID } = event;
-  
+
   try {
-    let userName = "صديق";
+    let userName = "زول";
     try {
       const info = await api.getUserInfo(senderID);
       if (info?.[senderID]?.name) userName = info[senderID].name;
-    } catch (e) {}
+    } catch {}
 
-    const reply = await getGroqReply(threadID, text, userName);
-    if (!reply) return api.sendMessage("الشبكة كعبة شوية يا بابا ؛-؛", threadID, messageID);
+    if (!conversationMemory[threadID]) conversationMemory[threadID] = [];
+    const history = conversationMemory[threadID].slice(-10);
 
-    const currentMode = global.ابلين_mode[threadID] || "text_only";
+    const messages = [
+      { role: "system", content: SYSTEM_PROMPT },
+      ...history,
+      { role: "user", content: `${userName}: ${text}` }
+    ];
 
-    if (currentMode === "voice_only") {
-      return handleVoice(api, event, reply);
-    } else {
-      return api.sendMessage(reply, threadID, (err, info) => {
-        if (!err) pushReply(info.messageID, senderID);
-      }, messageID);
-    }
-  } catch (e) {
-    console.error(e);
-  }
-}
+    // تبديل المفاتيح تلقائياً لتجنب الحظر (Rate Limit)
+    const key = GROQ_KEYS[keyIndex % GROQ_KEYS.length];
+    keyIndex++;
 
-async function getGroqReply(threadID, userText, userName) {
-  if (!conversationMemory[threadID]) conversationMemory[threadID] = [];
-  
-  const history = conversationMemory[threadID].slice(-6); 
-  const messages = [
-    { role: "system", content: SYSTEM_PROMPT },
-    ...history,
-    { role: "user", content: `${userName}: ${userText}` }
-  ];
-
-  const key = GROQ_KEYS[keyIndex % GROQ_KEYS.length];
-  keyIndex++;
-
-  try {
     const res = await axios.post("https://api.groq.com/openai/v1/chat/completions", {
       model: "llama-3.3-70b-versatile",
-      messages: messages,
-      temperature: 0.7,
-      max_tokens: 150
-    }, { headers: { "Authorization": `Bearer ${key}` } });
+      messages,
+      temperature: 0.8,
+      max_tokens: 120
+    }, {
+      headers: { Authorization: `Bearer ${key}` }
+    });
 
     let reply = res.data.choices[0].message.content.trim();
 
-    // تأكيد وجود الإيموجي في النهاية برمجياً لو الموديل نساه
+    if (reply.startsWith("إبلين")) {
+      reply = reply.split(":").slice(1).join(":").trim();
+    }
+
+    const banned = ["تهكير", "اختراق", "اباحي", "سكس"];
+    if (banned.some(w => text.includes(w))) {
+      reply = "ما بلعب في الحاجات الوسخة دي 😒 ؛-؛";
+    }
+
     if (!reply.endsWith("؛-؛")) reply += " ؛-؛";
 
-    conversationMemory[threadID].push({ role: "user", content: `${userName}: ${userText}` });
+    conversationMemory[threadID].push({ role: "user", content: `${userName}: ${text}` });
     conversationMemory[threadID].push({ role: "assistant", content: reply });
-    
-    return reply;
+
+    if (conversationMemory[threadID].length > 30) {
+      conversationMemory[threadID] = conversationMemory[threadID].slice(-15);
+    }
+
+    const mode = global.ابلين_mode[threadID] || "text_only";
+    if (mode === "voice_only") {
+      return handleVoice(api, event, reply);
+    }
+
+    return api.sendMessage(reply, threadID, (err, info) => {
+      if (!err) pushReply(info.messageID, senderID);
+    }, messageID);
+
   } catch (e) {
-    return null;
+    console.error(e);
+    return api.sendMessage("الشبكة ضاربة شوية 😵 ؛-؛", event.threadID, event.messageID);
   }
 }
 
 async function handleVoice(api, event, text) {
-  const pathAudio = path.resolve(__dirname, 'cache', `${event.messageID}.mp3`);
+  const file = path.resolve(__dirname, 'cache', `${event.messageID}.mp3`);
   try {
-    const { data } = await axios.get(`https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text)}&tl=ar&client=tw-ob`, { responseType: "arraybuffer" });
+    const { data } = await axios.get(
+      `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text)}&tl=ar&client=tw-ob`,
+      { responseType: "arraybuffer" }
+    );
     fs.ensureDirSync(path.join(__dirname, 'cache'));
-    fs.writeFileSync(pathAudio, Buffer.from(data, "utf-8"));
-    return api.sendMessage({ attachment: fs.createReadStream(pathAudio) }, event.threadID, (err, info) => {
-      if (!err) pushReply(info.messageID, event.senderID);
-      if (fs.existsSync(pathAudio)) fs.unlinkSync(pathAudio);
-    }, event.messageID);
-  } catch (e) {
-    if (fs.existsSync(pathAudio)) fs.unlinkSync(pathAudio);
+    fs.writeFileSync(file, Buffer.from(data));
+    return api.sendMessage({ attachment: fs.createReadStream(file) }, event.threadID, () => fs.unlinkSync(file), event.messageID);
+  } catch {
     return api.sendMessage(text, event.threadID, event.messageID);
   }
 }
 
 function pushReply(messageID, author) {
-    if (!global.client.handleReply) global.client.handleReply = [];
-    global.client.handleReply.push({ name: "ابلين", messageID, author });
+  if (!global.client.handleReply) global.client.handleReply = [];
+  global.client.handleReply.push({ name: "ابلين", messageID, author });
 }
