@@ -2,7 +2,6 @@ const axios = require('axios');
 const fs = require('fs-extra');
 const path = require('path');
 
-// 🔑 مفاتيح GROQ اللي أرسلتها يا ملك
 const GROQ_KEYS = [
   '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',
   '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',
@@ -26,6 +25,11 @@ const conversationMemory = {};
 if (!global.ابلين_mode) global.ابلين_mode = {};
 
 const DEV_IDS = ["61588108307572", "100079668997780"];
+const STICKERS = [
+  "1015156960280119", "1832681453922352", "772035074841442", "1131886254547738", 
+  "463741316429523", "360232843844379", "511160708070561", "415593244815496", 
+  "1176396180346210", "918551956701051", "1020001456469983", "1494932474483177"
+];
 
 const SYSTEM_PROMPT = `
 أنتِ "إبلين"، بنت سودانية عمرها 18 سنة.
@@ -66,8 +70,10 @@ module.exports = {
       return api.sendMessage("رجعنا شات ساي 🤐 ؛-؛", threadID, messageID);
     }
 
+    // إذا نادى "ابلين" بدون كلام، ترسل ملصق عشوائي
     if (!query) {
-      return api.sendMessage("قول يا زول سامعاك ؛-؛", threadID, messageID);
+      const sticker = STICKERS[Math.floor(Math.random() * STICKERS.length)];
+      return api.sendMessage({ sticker }, threadID, messageID);
     }
 
     api.setMessageReaction(isDev ? "✨" : "💙", messageID, () => {}, true);
@@ -100,7 +106,6 @@ async function processAI(api, event, text, isDev) {
       { role: "user", content: `${userName}: ${text}` }
     ];
 
-    // تبديل المفاتيح تلقائياً لتجنب الحظر (Rate Limit)
     const key = GROQ_KEYS[keyIndex % GROQ_KEYS.length];
     keyIndex++;
 
@@ -121,10 +126,11 @@ async function processAI(api, event, text, isDev) {
 
     const banned = ["تهكير", "اختراق", "اباحي", "سكس"];
     if (banned.some(w => text.includes(w))) {
-      reply = "ما بلعب في الحاجات الوسخة دي 😒 ؛-؛";
+      reply = "ما بلعب في الحاجات الوسخة دي 😒 •-•";
     }
 
-    if (!reply.endsWith("؛-؛")) reply += " ؛-؛";
+    // إضافة الخاتمة المطلوبة في السيستم الأصلي
+    if (!reply.endsWith("•-•")) reply += " •-•";
 
     conversationMemory[threadID].push({ role: "user", content: `${userName}: ${text}` });
     conversationMemory[threadID].push({ role: "assistant", content: reply });
