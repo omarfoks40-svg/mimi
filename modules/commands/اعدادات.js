@@ -18,11 +18,11 @@ function getShow(settings) {
 module.exports = {
     config: {
         name: "اعدادات",
-        version: "1.5.0",
-        author: "Kenji & Sinko",
+        version: "2.0.0",
+        author: "SINKO",
         countDown: 3,
-        role: 1,
-        description: "إعدادات حماية المجموعة بالتفاعل",
+        role: 1, // للمشرفين
+        description: "إعدادات حماية المجموعة بالتفاعل والرد",
         category: "group",
         aliases: ["setting", "حماية"],
         guide: { ar: "{pn}" }
@@ -49,6 +49,8 @@ module.exports = {
         );
 
         if (msg) {
+            // إضافة التعامل مع الرد
+            if (!global.client.handleReply) global.client.handleReply = [];
             global.client.handleReply.push({
                 name: this.config.name,
                 messageID: msg.messageID,
@@ -68,11 +70,13 @@ module.exports = {
 
             const threadData = Threads.get(threadID) || {};
             const current = threadData.settings?.antiSettings || {};
+            
+            // تجهيز الإعدادات الجديدة بناءً على الاختيارات
             const newSettings = {};
             for (const k of KEYS) newSettings[k] = !!current[k];
             for (const n of nums) newSettings[KEYS[n - 1]] = !newSettings[KEYS[n - 1]];
 
-            // --- الفحص المصلح لصلاحيات البوت ---
+            // فحص صلاحيات البوت
             const threadInfo = await api.getThreadInfo(threadID).catch(() => ({}));
             const botID = api.getCurrentUserID();
             const adminIDs = (threadInfo.adminIDs || []).map(a => (a.id || a).toString());
@@ -80,14 +84,12 @@ module.exports = {
 
             let warning = "";
             if (!isBotAdmin) {
-                warning = "⚠️ تنبيه: البوت ليس مشرفاً! تم تعطيل خيارات الحماية التلقائية ؛-؛\n\n";
-                newSettings.antiOut = false;
-                newSettings.antiSpam = false;
+                warning = "⚠️ تنبيه: البوت ليس مشرفاً! قد لا تعمل بعض الحمايات ؛-؛\n\n";
             }
 
             const show = getShow(newSettings);
             const msg = await api.sendMessage(
-`╭━〔 ⚙️ تأكيد الإعدادات 〕━╮
+`╭━〔 ⚙️ تأكيد الإعدادات الجديدة 〕━╮
 ① [${show.antiSpam}] مكافحة السبام
 ② [${show.antiOut}] منع الخروج
 ③ [${show.antiChangeGroupName}] حماية الاسم
@@ -95,35 +97,46 @@ module.exports = {
 ⑤ [${show.antiChangeNickname}] حماية الكنيات
 ⑥ [${show.notifyChange}] الإشعارات
 ╰━━━━━━━━━━━━━━━━╯
-${warning}↫ تفاعل بـ 👍 (لايك) على هذه الرسالة للحفظ ؛-؛`,
+${warning}↫ تفاعل بـ (👍) على هذه الرسالة لتأكيد الحفظ ؛-؛`,
                 threadID, messageID
             );
 
             if (msg) {
+                // دفع البيانات لنظام التفاعل
+                if (!global.client.handleReaction) global.client.handleReaction = [];
                 global.client.handleReaction.push({
                     name: this.config.name,
                     messageID: msg.messageID,
                     author: senderID,
-                    newSettings
+                    newSettings: newSettings // تمرير الإعدادات المختارة للحفظ عند التفاعل
                 });
             }
         }
     },
 
     onReaction: async function ({ api, event, handleReaction }) {
-        const { threadID, messageID, userID, reaction } = event;
+        const { threadID, userID, reaction, messageID } = event;
+        
+        // التحقق من أن الشخص المتفاعل هو نفسه صاحب الطلب
         if (userID !== handleReaction.author) return;
 
-        // التحقق من تفاعل التأكيد (لايك أو قلب أو صح)
-        if (["👍", "❤️", "✅"].includes(reaction)) {
-            const threadData = Threads.get(threadID) || {};
-            const currentSettings = threadData.settings || {};
-            currentSettings.antiSettings = handleReaction.newSettings;
-            
-            Threads.set(threadID, { settings: currentSettings });
+        // التحقق من نوع التفاعل (👍)
+        if (reaction === "👍") {
+            try {
+                const threadData = Threads.get(threadID) || {};
+                const currentSettings = threadData.settings || {};
+                
+                // تحديث الإعدادات في قاعدة البيانات
+                currentSettings.antiSettings = handleReaction.newSettings;
+                Threads.set(threadID, { settings: currentSettings });
 
-            api.unsendMessage(handleReaction.messageID); // حذف رسالة التأكيد
-            return api.sendMessage("✅ تم حفظ الإعدادات بنجاح.. المجموعة الآن في أمان ؛-؛", threadID);
+                // إشعار بالنجاح وحذف رسالة التأكيد
+                api.unsendMessage(handleReaction.messageID);
+                return api.sendMessage("✅ تم الحفظ بنجاح! المجموعة الآن تحت حماية إبلين ؛-؛", threadID);
+            } catch (e) {
+                console.error(e);
+                return api.sendMessage("حدث خطأ أثناء الحفظ ؛-؛", threadID);
+            }
         }
     }
 };
