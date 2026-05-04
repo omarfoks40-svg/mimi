@@ -2,65 +2,88 @@ const axios = require('axios');
 
 module.exports = {
   config: {
-    name: "ارسلي",
-    aliases: ["noti", "نشر", "بث"],
-    version: "2.0",
-    author: "SINKO",
+    name: "شعار",
+    aliases: ["logo", "broadcast-dev"],
+    version: "2.5",
+    author: "SINKO + Fixed",
     countDown: 10,
     role: 2, // للمطورين فقط
     category: "المـطور",
     guide: "{pn} <الرسالة>"
   },
 
-  onStart: async function ({ api, event, args, threadsData }) {
-    const { threadID, messageID, senderID, messageReply, attachments } = event;
+  onStart: async function ({ api, event, args }) {
+    const { threadID, messageID, attachments, messageReply, senderID } = event;
 
-    // 1. التأكد من وجود نص
-    if (!args[0]) return api.sendMessage("⚠️ | يا ملك، اكتب الرسالة الداير ترسلها للمجموعات أولاً! ؛-؛", threadID, messageID);
-
-    // 2. تجميع المرفقات (صور، فيديو، بصمة) لو وجدت في الرسالة أو الرد
-    const allAttachments = [...attachments, ...(messageReply?.attachments || [])];
-    const attachmentStreams = [];
-    
-    try {
-      for (let atch of allAttachments) {
-        const res = await axios.get(atch.url, { responseType: "stream" });
-        attachmentStreams.push(res.data);
-      }
-    } catch (e) {
-      console.error("خطأ في جلب المرفقات:", e);
+    // 🔒 التحقق من هوية المطور
+    const ADMINS = ["61588108307572"]; // الآيدي حقك هنا
+    if (!ADMINS.includes(senderID)) {
+      return api.sendMessage(
+        "🚫 | معليش يا زول، الأمر دا خاص بالمطور 'سينكو' بس. ؛-؛",
+        threadID,
+        messageID
+      );
     }
 
-    // 3. جلب كل المجموعات التي يتواجد بها البوت
+    if (!args[0]) {
+      return api.sendMessage(
+        "⚠️ | يا مطور، وين الرسالة الداير ترسلها؟",
+        threadID,
+        messageID
+      );
+    }
+
+    const allAttachments = [...attachments, ...(messageReply?.attachments || [])];
+    const attachmentStreams = [];
+
+    // تحميل المرفقات (صور + فيديو)
+    for (let atch of allAttachments) {
+      try {
+        const res = await axios.get(atch.url, {
+          responseType: "stream",
+          timeout: 20000
+        });
+        attachmentStreams.push(res.data);
+      } catch (err) {
+        console.log("فشل تحميل مرفق:", err.message);
+      }
+    }
+
     const allThreads = await api.getThreadList(500, null, ["INBOX"]);
     const groupThreads = allThreads.filter(t => t.isGroup && t.threadID !== threadID);
 
-    api.sendMessage(`⏳ | جارٍ بدء البث إلى ${groupThreads.length} مجموعة.. أرح! ؛-؛`, threadID, messageID);
+    api.sendMessage(
+      `⏳ | جاري إرسال الشعار إلى ${groupThreads.length} مجموعة...`,
+      threadID,
+      messageID
+    );
 
-    let successCount = 0;
-    let failCount = 0;
+    let success = 0;
+    let fail = 0;
 
-    const notificationBody = `📢 | إشـعار مـن الـمطور \n────────────────\n${args.join(" ")}\n────────────────\n⚠️ الرد على هذه الرسالة لا يصل للمطور. ؛-؛`;
+    const msg = `📢 | شـعـار مـن الـمـطـور\n────────────────\n${args.join(" ")}\n────────────────\n⚠️ إشعار تلقائي`;
 
-    // 4. عملية الإرسال المتتابع
     for (const group of groupThreads) {
       try {
-        await api.sendMessage({
-          body: notificationBody,
-          attachment: attachmentStreams
-        }, group.threadID);
-        successCount++;
-        // تأخير بسيط 300 ملي ثانية عشان نتجنب الحظر (Spam)
-        await new Promise(resolve => setTimeout(resolve, 300));
-      } catch (error) {
-        failCount++;
-        console.error(`فشل الإرسال للمجموعة ${group.threadID}:`, error);
+        await api.sendMessage(
+          {
+            body: msg,
+            attachment: attachmentStreams.length ? attachmentStreams : undefined
+          },
+          group.threadID
+        );
+        success++;
+        await new Promise(r => setTimeout(r, 600)); // تأخير بسيط للحماية من الحظر
+      } catch (err) {
+        fail++;
+        console.log("فشل الإرسال:", group.threadID, err.message);
       }
     }
 
-    // 5. النتيجة النهائية
-    const finalMsg = `✅ | تـم تـنفيذ الـعملية بـنجاح:\n\n❐ تـم الإرسـال إلـى: ${successCount} مجموعة\n❐ فـشل الإرسـال إلـى: ${failCount} مجموعة\n\nتـم بـواسطة مـوانا الشفتة ؛-؛`;
-    
-    return api.sendMessage(finalMsg, threadID, messageID);
+    return api.sendMessage(
+      `✅ | تم انتهاء الإرسال بنجاح:\n\n✔️ نجاح: ${success}\n❌ فشل: ${fail}`,
+      threadID,
+      messageID
+    );
   }
 };
