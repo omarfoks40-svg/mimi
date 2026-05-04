@@ -1,6 +1,5 @@
 const fs = require('fs');
 const path = require('path');
-const axios = require('axios');
 const moment = require("moment-timezone");
 
 const configPath = path.join(__dirname, '..', '..', 'config', 'config.json');
@@ -19,7 +18,7 @@ module.exports = {
     config: {
         name: 'اوامر',
         aliases: ['menu', 'help', 'الأوامر'],
-        version: '8.7.0',
+        version: '8.7.5',
         author: 'سينكو',
         countDown: 5,
         prefix: true,
@@ -63,7 +62,7 @@ module.exports = {
             let detailMsg = `> ˼🌌˹↜ تـفـاصـيـل الأمـر ↶\n`;
             detailMsg += `╮──────────────⟢ـ\n`;
             detailMsg += `┆˼🧭˹┊ الـإســم ↜｢ ${cmd.name} ｣\n`;
-            detailMsg += `┆˼⚕️˹┊ الـوصـف ↜｢ ${cmd.description} ｣\n`;
+            detailMsg += `┆˼⚕️˹┊ الـوصـف ↜｢ ${cmd.description || 'لا يوجد وصف'} ｣\n`;
             detailMsg += `┆˼🌁˹┊ الـمؤلـف ↜｢ ${cmd.author} ｣\n`;
             detailMsg += `┆˼🕕˹┊ الـإصـدار ↜｢ ${cmd.version} ｣\n`;
             if (cmd.guide) {
@@ -121,26 +120,7 @@ module.exports = {
         msg += `┊˼📖˹┊ الإجمالي ↜ ${uniqueCommands.length} أمر\n`;
         msg += `┊˼🪸˹┊ SINKO | ✅`;
 
-        // --- جلب صورة عشوائية من الفئات المحددة (غمزة، سعيد، بكاء) ---
-        try {
-            const helpCategories = ["wink", "happy", "cry"];
-            const randomCategory = helpCategories[Math.floor(Math.random() * helpCategories.length)];
-            
-            const res = await axios.get(`https://api.waifu.pics/sfw/${randomCategory}`);
-            const imgStream = (await axios.get(res.data.url, { responseType: 'stream' })).data;
-
-            return api.sendMessage({
-                body: msg,
-                attachment: imgStream
-            }, threadID, messageID);
-        } catch (err) {
-            // في حال فشل الـ API، نستخدم الصورة الافتراضية القديمة
-            try {
-                const fallbackImg = (await axios.get('https://i.ibb.co/BmHbQfF/1776302441193.png', { responseType: 'stream' })).data;
-                return api.sendMessage({ body: msg, attachment: fallbackImg }, threadID, messageID);
-            } catch (e) {
-                return api.sendMessage(msg, threadID, messageID);
-            }
-        }
+        // إرسال النص مباشرة بدون صورة
+        return api.sendMessage(msg, threadID, messageID);
     }
 };
