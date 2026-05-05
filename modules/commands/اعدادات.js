@@ -18,11 +18,11 @@ function getShow(settings) {
 module.exports = {
     config: {
         name: "اعدادات",
-        version: "2.0.0",
+        version: "2.7.0",
         author: "SINKO",
         countDown: 3,
-        role: 1, // للمشرفين
-        description: "إعدادات حماية المجموعة بالتفاعل والرد",
+        role: 1, 
+        description: "إعدادات حماية المجموعة - أرقام ملكية وزخرفة APLIN",
         category: "group",
         aliases: ["setting", "حماية"],
         guide: { ar: "{pn}" }
@@ -36,20 +36,20 @@ module.exports = {
         const show = getShow(settings);
 
         const msg = await api.sendMessage(
-`╭━〔 🛡 إعدادات المجموعة 🛡 〕━╮
-① [${show.antiSpam}] مكافحة السبام
-② [${show.antiOut}] منع الخروج
-③ [${show.antiChangeGroupName}] حماية الاسم
-④ [${show.antiChangeGroupImage}] حماية الصورة
-⑤ [${show.antiChangeNickname}] حماية الكنيات
-⑥ [${show.notifyChange}] الإشعارات
-╰━━━━━━━━━━━━━━━━━╯
-↫ رد بالأرقام لتغيير الإعداد (مثلاً: 1 3) ؛-؛`,
+`> ˼🛡️˹↜ إعدادات الحماية ↶
+╮──────────────⟢ـ
+​❆˹┊ ① [${show.antiSpam}] مكافحة السبام
+​❆˹┊ ② [${show.antiOut}] منع الخروج
+​❆˹┊ ③ [${show.antiChangeGroupName}] حماية الاسم
+​❆˹┊ ④ [${show.antiChangeGroupImage}] حماية الصورة
+​❆˹┊ ⑤ [${show.antiChangeNickname}] حماية الكنيات
+​❆˹┊ ⑥ [${show.notifyChange}] الإشعارات
+╯──────────────⟢ـ
+↫ رد بالأرقام لتغيير الإعداد فوراً ؛-؛`,
             threadID, messageID
         );
 
         if (msg) {
-            // إضافة التعامل مع الرد
             if (!global.client.handleReply) global.client.handleReply = [];
             global.client.handleReply.push({
                 name: this.config.name,
@@ -62,80 +62,48 @@ module.exports = {
 
     onReply: async function ({ api, event, handleReply }) {
         const { threadID, messageID, senderID, body } = event;
-        if (handleReply.author !== senderID) return;
+        if (String(handleReply.author) !== String(senderID)) return;
 
         if (handleReply.step === "choose") {
             const nums = body.trim().split(/\s+/).map(Number).filter(n => n >= 1 && n <= 6);
             if (!nums.length) return api.sendMessage("⚠️ أرسل أرقام صحيحة من 1 لـ 6 يا ملك ؛-؛", threadID, messageID);
 
-            const threadData = Threads.get(threadID) || {};
-            const current = threadData.settings?.antiSettings || {};
-            
-            // تجهيز الإعدادات الجديدة بناءً على الاختيارات
-            const newSettings = {};
-            for (const k of KEYS) newSettings[k] = !!current[k];
-            for (const n of nums) newSettings[KEYS[n - 1]] = !newSettings[KEYS[n - 1]];
-
-            // فحص صلاحيات البوت
-            const threadInfo = await api.getThreadInfo(threadID).catch(() => ({}));
-            const botID = api.getCurrentUserID();
-            const adminIDs = (threadInfo.adminIDs || []).map(a => (a.id || a).toString());
-            const isBotAdmin = adminIDs.includes(botID.toString());
-
-            let warning = "";
-            if (!isBotAdmin) {
-                warning = "⚠️ تنبيه: البوت ليس مشرفاً! قد لا تعمل بعض الحمايات ؛-؛\n\n";
-            }
-
-            const show = getShow(newSettings);
-            const msg = await api.sendMessage(
-`╭━〔 ⚙️ تأكيد الإعدادات الجديدة 〕━╮
-① [${show.antiSpam}] مكافحة السبام
-② [${show.antiOut}] منع الخروج
-③ [${show.antiChangeGroupName}] حماية الاسم
-④ [${show.antiChangeGroupImage}] حماية الصورة
-⑤ [${show.antiChangeNickname}] حماية الكنيات
-⑥ [${show.notifyChange}] الإشعارات
-╰━━━━━━━━━━━━━━━━╯
-${warning}↫ تفاعل بـ (👍) على هذه الرسالة لتأكيد الحفظ ؛-؛`,
-                threadID, messageID
-            );
-
-            if (msg) {
-                // دفع البيانات لنظام التفاعل
-                if (!global.client.handleReaction) global.client.handleReaction = [];
-                global.client.handleReaction.push({
-                    name: this.config.name,
-                    messageID: msg.messageID,
-                    author: senderID,
-                    newSettings: newSettings // تمرير الإعدادات المختارة للحفظ عند التفاعل
-                });
-            }
-        }
-    },
-
-    onReaction: async function ({ api, event, handleReaction }) {
-        const { threadID, userID, reaction, messageID } = event;
-        
-        // التحقق من أن الشخص المتفاعل هو نفسه صاحب الطلب
-        if (userID !== handleReaction.author) return;
-
-        // التحقق من نوع التفاعل (👍)
-        if (reaction === "👍") {
             try {
                 const threadData = Threads.get(threadID) || {};
                 const currentSettings = threadData.settings || {};
+                const antiSettings = currentSettings.antiSettings || {};
                 
-                // تحديث الإعدادات في قاعدة البيانات
-                currentSettings.antiSettings = handleReaction.newSettings;
+                const newSettings = {};
+                for (const k of KEYS) newSettings[k] = !!antiSettings[k];
+                for (const n of nums) newSettings[KEYS[n - 1]] = !newSettings[KEYS[n - 1]];
+
+                currentSettings.antiSettings = newSettings;
                 Threads.set(threadID, { settings: currentSettings });
 
-                // إشعار بالنجاح وحذف رسالة التأكيد
-                api.unsendMessage(handleReaction.messageID);
-                return api.sendMessage("✅ تم الحفظ بنجاح! المجموعة الآن تحت حماية إبلين ؛-؛", threadID);
+                // فحص الأدمن المطور
+                const botID = String(api.getCurrentUserID());
+                const threadInfo = await api.getThreadInfo(threadID).catch(() => ({}));
+                const adminIDs = (threadInfo.adminIDs || []).map(admin => String(admin.id || admin));
+                const isBotAdmin = adminIDs.includes(botID);
+
+                let warning = isBotAdmin ? "" : "⚠️ تنبيه: البوت ليس مشرفاً حالياً!\n";
+                const show = getShow(newSettings);
+
+                return api.sendMessage(
+`> ˼✅˹↜ تم تحديث الإعدادات ↶
+╮──────────────⟢ـ
+​❆˹┊ ① [${show.antiSpam}] مكافحة السبام
+​❆˹┊ ② [${show.antiOut}] منع الخروج
+​❆˹┊ ③ [${show.antiChangeGroupName}] حماية الاسم
+​❆˹┊ ④ [${show.antiChangeGroupImage}] حماية الصورة
+​❆˹┊ ⑤ [${show.antiChangeNickname}] حماية الكنيات
+​❆˹┊ ⑥ [${show.notifyChange}] الإشعارات
+╯──────────────⟢ـ
+${warning}✅ تم حفظ التعديلات بنجاح ؛-؛`,
+                    threadID, messageID
+                );
             } catch (e) {
-                console.error(e);
-                return api.sendMessage("حدث خطأ أثناء الحفظ ؛-؛", threadID);
+                return api.sendMessage("❌ فشل الحفظ في قاعدة البيانات ؛-؛", threadID, messageID);
             }
         }
     }
