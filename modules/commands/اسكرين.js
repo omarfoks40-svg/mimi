@@ -2,8 +2,7 @@ const axios = require("axios");
 
 module.exports = {
   config: {
-    name: "الأدوات"
-  تت"ت",
+    name: "اسكرين",
     aliases: ["لقطة", "ss"],
     version: "1.0.0",
     author: "SINKO",
