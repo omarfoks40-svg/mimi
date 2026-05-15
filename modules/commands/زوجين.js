@@ -11,7 +11,7 @@ module.exports = {
         prefix: true,
         groupAdminOnly: false,
         description: "يجلب ويرسل صور زوجين متطابقين عشوائياً.",
-        category: "عشوائي",
+        category: "fun",
         guide: {
             ar: "{pn}صور_زوجين: احصل على صور زوجين متطابقين عشوائياً."
         }
