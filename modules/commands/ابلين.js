@@ -107,7 +107,7 @@ async function handlerAI(api, event, userQuery) {
     if (!conversationMemory[threadID]) conversationMemory[threadID] = [];
 
     /* 🔒 اسم المستخدم الحقيقي فقط */
-    let userName = "زول";
+    let userName = ".";
     try {
       const info = await api.getUserInfo(senderID);
       if (info?.[senderID]?.name) {
@@ -205,6 +205,6 @@ async function handleVoice(api, event, text) {
     );
 
   } catch {
-    return api.sendMessage(`${text} '-'`, event.threadID, event.messageID);
+    return api.sendMessage(`${text} 🪿`, event.threadID, event.messageID);
   }
 }
