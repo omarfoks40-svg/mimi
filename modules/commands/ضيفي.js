@@ -3,15 +3,15 @@ const { log } = require('../../logger/logger');
 
 module.exports = {
   config: {
-    name: 'عضو',
+    name: 'ضيفي',
     version: '1.5',
     author: 'Hridoy',
     countDown: 5,
     prefix: true,
     adminOnly: false,
-    aliases: ['au', 'addu', 'اضافة'],
+    aliases: ['au', 'ad', 'اضافة'],
     description: '➕ إضافة عضو إلى شات المجموعة',
-    category: 'group ',
+    category: 'group',
     guide: {
       en: '   {pn}اضافة_عضو [رابط الحساب | UID]'
     },
