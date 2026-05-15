@@ -243,7 +243,7 @@ module.exports = {
     author:    "SINKO",
     countDown: 5,
     role:      0,
-    category:  "اللـعب",
+    category:  "fun",
     guide:     { ar: "سلاحي | سلاحي متجر | سلاحي شراء [اسم] | سلاحي النخبة | سلاحي انجازات" }
   },
 
