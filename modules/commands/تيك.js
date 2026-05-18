@@ -5,16 +5,16 @@ const path = require("path");
 module.exports = {
   config: {
     name: "تيك",
-    version: "1.0.6",
+    version: "1.0.7",
     author: "SINKO",
     countDown: 5,
     prefix: false,
-    category: "الوسائط"
+    category: "الوسائط " // تم تعديل الفئة ليتوافق مع فئاتك الـ 4 الأساسية
   },
 
   onStart: async function ({ api, event, args }) {
     const { threadID, messageID, senderID } = event;
-    const query = args.join(" ");
+    const query = args.join(" ").trim();
     
     if (!query) return api.sendMessage("╮──────────────⟢ـ\n┆˼⚠️˹┊ يـرجـى كـتـابـة كـلـمـة بـحـث\n╯──────────────⟢ـ", threadID, messageID);
 
@@ -37,7 +37,12 @@ module.exports = {
 
   onReply: async function ({ api, event, handleReply }) {
     const { threadID, messageID, body, senderID } = event;
-    if (senderID !== handleReply.author) return;
+    
+    // التحقق من أن المستخدم الحالي هو صاحب طلب البحث الأساسي (نفس منطق ابلين)
+    if (handleReply.author && senderID !== handleReply.author) return;
+
+    // التأكد من أن الرد موجه لملف التيكتوك هذا
+    if (handleReply.name !== "تيك") return;
 
     const input = body.trim().toLowerCase();
 
@@ -45,9 +50,12 @@ module.exports = {
     if (input === "التالي" || input === "next") {
       const nextPage = handleReply.page + 1;
       const maxPage = Math.ceil(handleReply.results.length / 12);
-      if (nextPage > maxPage) return api.sendMessage("╮──────────────⟢ـ\n┆˼🔚˹┊ لا تـوجـد صـفـحـات أخـرى\n╯──────────────⟢ـ", threadID, messageID);
       
-      api.unsendMessage(handleReply.messageID);
+      if (nextPage > maxPage) {
+        return api.sendMessage("╮──────────────⟢ـ\n┆˼🔚˹┊ لا تـوجـد صـفـحـات أخـرى\n╯──────────────⟢ـ", threadID, messageID);
+      }
+      
+      try { api.unsendMessage(handleReply.messageID); } catch(e) {}
       return sendPage(api, event, handleReply.results, nextPage, handleReply.query);
     }
 
@@ -58,12 +66,12 @@ module.exports = {
     const selected = handleReply.results[index];
     if (!selected) return;
 
-    api.unsendMessage(handleReply.messageID);
+    try { api.unsendMessage(handleReply.messageID); } catch(e) {}
     api.setMessageReaction("📥", messageID, () => {}, true);
 
     // تأكد من وجود مجلد الكاش
     const cacheDir = path.join(__dirname, "cache");
-    if (!fs.existsSync(cacheDir)) fs.mkdirSync(cacheDir);
+    fs.ensureDirSync(cacheDir);
 
     const filePath = path.join(cacheDir, `tt_${senderID}_${Date.now()}.mp4`);
     
@@ -77,7 +85,13 @@ module.exports = {
         api.sendMessage({
           body: `> ˼✅˹↜ تـم الـقـنـص بـنـجـاح\n╮──────────────⟢ـ\n┆˼📝˹┊ الـعـنـوان ↶\n┆ « ${selected.title || "بدون عنوان"} »\n╯──────────────⟢ـ\n┊˼🪸˹┊ SINKO | ✅`,
           attachment: fs.createReadStream(filePath)
-        }, threadID, () => fs.unlinkSync(filePath), messageID);
+        }, threadID, () => {
+          try { fs.unlinkSync(filePath); } catch (e) {}
+        }, messageID);
+      });
+
+      writer.on('error', () => {
+        api.sendMessage("╮──────────────⟢ـ\n┆˼❌˹┊ خـطأ أثـنـاء كـتـابـة الـمـلـف\n╯──────────────⟢ـ", threadID, messageID);
       });
 
     } catch (err) {
@@ -108,8 +122,9 @@ async function sendPage(api, event, allResults, page, query) {
 
   return api.sendMessage(msg, threadID, (err, info) => {
     if (!err) {
+      if (!global.client.handleReply) global.client.handleReply = [];
       global.client.handleReply.push({
-        name: "تكتوك",
+        name: "تيك", // تم توحيده ليكون متطابقاً مع اسم الموديل الأساسي في الكونسول
         messageID: info.messageID,
         author: senderID,
         results: allResults,
