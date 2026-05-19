@@ -65,7 +65,7 @@ function getKey() {
 
 module.exports = {
   config: {
-    name: "ابلين",
+    name: "",
     version: "26.5.0",
     author: "SINKO",
     prefix: false,
