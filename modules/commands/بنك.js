@@ -29,7 +29,7 @@ module.exports = {
         countDown: 5,
         prefix: true,
         description: 'نظام اقتصادي متكامل بزخرفة المسار الطولي.',
-        category: 'fun',
+        category: 'tools',
         guide: {
             ar: '●───── ⌬ ─────●\n' +
                 '┇ ⦿ ⟬ الأوامـر الـمـتـاحـة ⟭\n' +
