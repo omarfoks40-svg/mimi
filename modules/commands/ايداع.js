@@ -34,7 +34,7 @@ module.exports = {
         prefix: true,
         groupAdminOnly: false,
         description: 'تحويل الأموال من رصيدك إلى حسابك البنكي.',
-        category: 'اقتصاد',
+        category: 'tools',
         guide: {
             ar: '{pn} <المبلغ>'
         },
