@@ -25,7 +25,7 @@ module.exports = {
 
   sendImages: async function (api, event, keySearch, limit, offset) {
     const { threadID, messageID, senderID } = event;
-    const cacheDir = path.join(__dirname, 'tmp', `${Date.now()}`);
+    const cacheDir = path.join(__dirname, 'cache', `pt_${Date.now()}`);
 
     try {
       const res = await axios.get(`https://pinterest-ashen.vercel.app/api?search=${encodeURIComponent(keySearch)}`);
@@ -50,8 +50,7 @@ module.exports = {
       const bodyMsg = `●─────── ⌬ ───────●\n┇ ⦿ ⟬ بـنـتـراسـت ⟭\n┇\n┇ الـبـحث: ${keySearch}\n┇ الـعدد: ${imgData.length}\n┇\n┇ 💡 تفاعل بـ ❤️ أو رد بـ "مزيد" ؛-؛\n●─────── ⌬ ───────●`;
 
       return api.sendMessage({ body: bodyMsg, attachment: imgData }, threadID, (err, info) => {
-        // حذف الكاش بعد الإرسال
-        setTimeout(() => fs.remove(cacheDir), 5000); 
+        fs.remove(cacheDir).catch(() => {});
 
         if (!err && global.client) {
             const dataObj = {
@@ -81,14 +80,13 @@ module.exports = {
     }
   },
 
-  onReaction: async function ({ api, event, handleReaction }) {
+  onReaction: async function ({ api, event, handler }) {
     const { reaction, userID, threadID, messageID } = event;
-    if (userID != handleReaction.author) return;
+    if (userID != handler.author) return;
 
-    // ميزة التفاعل: يقبل القلب الأحمر أو القلب المتوهج
     if (reaction === "❤" || reaction === "❤️" || reaction === "🦧") {
-      api.unsendMessage(handleReaction.messageID); // حذف القديمة عشان الزحمة
-      return module.exports.sendImages(api, event, handleReaction.keySearch, 10, handleReaction.offset);
+      api.unsendMessage(handler.messageID);
+      return module.exports.sendImages(api, event, handler.keySearch, 10, handler.offset);
     }
   }
 };
