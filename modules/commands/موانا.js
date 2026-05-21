@@ -123,4 +123,4 @@ async function handleImageEdit(api, event, prompt, imageUrl) {
     await api.sendMessage({ body: "ظبطتها ليك ؛-؛", attachment: fs.createReadStream(cachePath) }, threadID, () => fs.unlinkSync(cachePath), messageID);
   } catch (e) { api.sendMessage("ما قدرت أعدل الصورة ؛-؛", threadID); }
 }
-ادمج كود ريم داخل كود موانا وا معها كل الميزات ديك التابعه لمفتاح.
+
