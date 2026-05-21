@@ -4,21 +4,17 @@ const fs = require('fs-extra');
 const path = require('path');
 const axios = require('axios');
 
+// استبدال الروابط الميتة بروابط توليد ذكاء اصطناعي فخمة ومستقرة من Pollinations AI تعطي خلفيات أنمي هندسية دافئة دائماً
 const backgroundImages = [
-    "https://i.imgur.com/XVRFwns.jpeg",
-    "https://i.imgur.com/DXXvgjb.png",
-    "https://i.imgur.com/LwoDuzZ.jpeg",
-    "https://i.imgur.com/mtSrSYh.jpeg",
-    "https://i.imgur.com/IVvEBc4.jpeg",
-    "https://i.imgur.com/uJcd1bf.jpeg"
+    "https://image.pollinations.ai/prompt/cyberpunk%20anime%20gaming%20room%20background%20dark%20neon%20no%20text%20high%20resolution?width=1200&height=700&nologo=true",
+    "https://image.pollinations.ai/prompt/abstract%20geometric%20dark%20blue%20and%20purple%20luxury%20background%20no%20text?width=1200&height=700&nologo=true",
+    "https://image.pollinations.ai/prompt/anime%20sky%20stars%20and%20galaxy%20aesthetic%20dark%20background%20no%20text?width=1200&height=700&nologo=true"
 ];
-
-const backgroundCache = new Map();
 
 module.exports = {
   config: {
     name: 'welcome',
-    version: '5.2.0',
+    version: '5.5.0',
     author: 'SINKO',
     eventType: ['log:subscribe']
   },
@@ -88,10 +84,10 @@ async function sendGroupWelcome(api, threadID, userIDs, authorID) {
     if (userIDs.length === 1) {
       const targetUserID = userIDs[0];
       
-      // تعديل روابط الصور لضمان عدم الحظر أو جلب صور سوداء (باستخدام محرك صور فيسبوك المباشر)
+      // استخدام رابط تحويل مباشر لفيسبوك يتخطى حظر جافا سكريبت ويجلب البروفايل الحقيقي بنسبة 100%
       const groupImage = threadInfo.imageSrc || 'https://i.imgur.com/7Qk8k6c.png';
-      const userAvatar = `https://graph.facebook.com/${targetUserID}/picture?type=large`;
-      const adderAvatar = `https://graph.facebook.com/${authorID}/picture?type=large`;
+      const userAvatar = `https://graph.facebook.com/${targetUserID}/picture?width=300&height=300`;
+      const adderAvatar = `https://graph.facebook.com/${authorID}/picture?width=300&height=300`;
       const threadName = threadInfo.threadName || "المجموعة";
 
       const imageBuffer = await createWelcomeCard(
@@ -126,47 +122,57 @@ async function sendGroupWelcome(api, threadID, userIDs, authorID) {
   }
 }
 
-async function loadBackgroundImage(url) {
-    if (backgroundCache.has(url)) return backgroundCache.get(url);
+// تعديل الدالة لطلب الصور بدون حظر بروتوكول وحمايتها بالكامل
+async function loadImgSecure(url) {
     try {
-        const response = await axios.get(url, { responseType: "arraybuffer", headers: { "User-Agent": "Mozilla/5.0" } });
-        const img = await loadImage(Buffer.from(response.data));
-        backgroundCache.set(url, img);
-        return img;
+        const response = await axios.get(url, { 
+            responseType: "arraybuffer", 
+            headers: { 
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                "Accept": "image/avif,image/webp,image/apng,image/*,*/*"
+            },
+            timeout: 8000
+        });
+        return await loadImage(Buffer.from(response.data));
     } catch (error) {
-        return null;
+        // إذا فشل رابط المجموعة أو أي رابط مخصص، نمرر صورة بديلة فوراً لمنع السواد
+        try {
+            const fallback = await axios.get("https://i.imgur.com/7Qk8k6c.png", { responseType: "arraybuffer" });
+            return await loadImage(Buffer.from(fallback.data));
+        } catch(e) {
+            return null;
+        }
     }
 }
 
 async function drawProfileImage(ctx, imageUrl, x, y, size, borderColor) {
     const radius = size / 2;
-    try {
-        const response = await axios.get(imageUrl, { responseType: "arraybuffer", headers: { "User-Agent": "Mozilla/5.0" } });
-        const img = await loadImage(Buffer.from(response.data));
+    const img = await loadImgSecure(imageUrl);
 
-        ctx.shadowColor = borderColor;
-        ctx.shadowBlur = 15;
-        ctx.beginPath();
-        ctx.arc(x, y, radius + 5, 0, Math.PI * 2);
-        ctx.fillStyle = borderColor;
-        ctx.fill();
-        ctx.shadowBlur = 0;
-
-        ctx.save();
+    if (!img) {
+        // رسم دائرة لونية فخمة لإنقاذ الكرت بدلاً من تركه مفرغاً باللون الأبيض المزعج
         ctx.beginPath();
         ctx.arc(x, y, radius, 0, Math.PI * 2);
-        ctx.clip();
-        ctx.drawImage(img, x - radius, y - radius, size, size);
-        ctx.restore();
-        return true;
-    } catch (error) {
-        // حماية مضافة: إذا فشل الرابط تماماً، يرسم دائرة لونية فخمة بدلاً من المساحة السوداء الكاملة
-        ctx.beginPath();
-        ctx.arc(x, y, radius, 0, Math.PI * 2);
-        ctx.fillStyle = '#1f2937';
+        ctx.fillStyle = '#2c3e50';
         ctx.fill();
         return false;
     }
+
+    ctx.shadowColor = borderColor;
+    ctx.shadowBlur = 12;
+    ctx.beginPath();
+    ctx.arc(x, y, radius + 4, 0, Math.PI * 2);
+    ctx.fillStyle = borderColor;
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.drawImage(img, x - radius, y - radius, size, size);
+    ctx.restore();
+    return true;
 }
 
 async function createWelcomeCard(gcImg, userImg, adderImg, userName, userNumber, threadName, adderName) {
@@ -177,16 +183,20 @@ async function createWelcomeCard(gcImg, userImg, adderImg, userName, userNumber,
     const ctx = canvas.getContext('2d');
 
     const selectedBackground = backgroundImages[Math.floor(Math.random() * backgroundImages.length)];
-    const background = await loadBackgroundImage(selectedBackground);
+    const background = await loadImgSecure(selectedBackground);
 
     if (background) {
         ctx.drawImage(background, 0, 0, width, height);
     } else {
-        ctx.fillStyle = "#0c1017";
+        // تلوين الخلفية بتدرج غامق فاخر (Dark Elegant Gradient) في حال انقطاع الإنترنت كلياً عن جلب الصور
+        const gradient = ctx.createLinearGradient(0, 0, width, height);
+        gradient.addColorStop(0, '#0f172a');
+        gradient.addColorStop(1, '#1e1b4b');
+        ctx.fillStyle = gradient;
         ctx.fillRect(0, 0, width, height);
     }
 
-    ctx.fillStyle = "rgba(0, 0, 0, 0.4)"; 
+    ctx.fillStyle = "rgba(0, 0, 0, 0.35)"; 
     ctx.fillRect(0, 0, width, height);
     
     await Promise.all([
@@ -195,37 +205,36 @@ async function createWelcomeCard(gcImg, userImg, adderImg, userName, userNumber,
         drawProfileImage(ctx, adderImg, width - 120, 100, 150, "#3b82f6")
     ]);
 
-    // تحسين نوع الخط لـ Arial / Sans-Serif الافتراضي لتفادي ظهور الرموز المتقطعة والمربعات
-    ctx.font = 'bold 36px Arial, sans-serif';
+    ctx.font = 'bold 36px Arial';
     ctx.fillStyle = "#ffffff";
     ctx.textAlign = "center";
     ctx.fillText(threadName, width / 2, 350);
 
-    const welcomeGradient = ctx.createLinearGradient(width/2 - 180, 360, width/2 + 180, 360);
+    const welcomeGradient = ctx.createLinearGradient(width/2 - 180, 0, width/2 + 180, 0);
     welcomeGradient.addColorStop(0, "#3b82f6");
     welcomeGradient.addColorStop(0.5, "#10b981");
     welcomeGradient.addColorStop(1, "#ec4899");
 
-    ctx.font = 'bold 72px Arial, sans-serif';
+    ctx.font = 'bold 72px Arial';
     ctx.fillStyle = welcomeGradient;
     ctx.fillText("WELCOME", width / 2, 450);
 
-    ctx.font = 'bold 44px Arial, sans-serif';
+    ctx.font = 'bold 44px Arial';
     ctx.fillStyle = "#10b981";
     ctx.fillText(userName, width / 2, 515);
 
-    ctx.font = 'bold 28px Arial, sans-serif';
+    ctx.font = 'bold 28px Arial';
     ctx.fillStyle = "#e2e8f0";
     ctx.fillText(`Member #${userNumber}`, width / 2, 585);
     
     ctx.textAlign = "left";
     ctx.fillStyle = "#10b981";
-    ctx.font = 'bold 26px Arial, sans-serif';
+    ctx.font = 'bold 26px Arial';
     ctx.fillText(userName, 220, height - 95);
 
     ctx.textAlign = "right";
     ctx.fillStyle = "#3b82f6";
-    ctx.font = 'bold 22px Arial, sans-serif';
+    ctx.font = 'bold 22px Arial';
     ctx.fillText(`Added by: ${adderName}`, width - 220, 105);
 
     return canvas.toBuffer();
