@@ -19,7 +19,7 @@ const backgroundCache = new Map();
 module.exports = {
   config: {
     name: 'welcome',
-    version: '5.2.1',
+    version: '5.0.0',
     author: 'SINKO',
     eventType: ['log:subscribe']
   },
@@ -79,7 +79,7 @@ async function sendGroupWelcome(api, threadID, userIDs, authorID) {
       const name = userInfo?.[id]?.name || "عضو جديد";
       const tag = `@${name}`;
       
-      if (userIDs.length === 1) singleUserName = name; 
+      if (userIDs.length === 1) singleUserName = name; // حفظ الاسم إذا كان شخص واحد فقط للرسم
       
       bodyText += `  ⌯ ${count} ⋞ ${tag} ⋟\n`;
       mentions.push({ tag, id });
@@ -94,12 +94,13 @@ async function sendGroupWelcome(api, threadID, userIDs, authorID) {
     if (userIDs.length === 1) {
       const targetUserID = userIDs[0];
       
+      // تجهيز الروابط المباشرة للآفاتار والقروب
       const groupImage = threadInfo.imageSrc || 'https://i.imgur.com/7Qk8k6c.png';
       const userAvatar = `https://graph.facebook.com/${targetUserID}/picture?width=512&height=512&access_token=6628568379%7Cc1e620fa708a1d5696fb991c1bde5662`;
       const adderAvatar = `https://graph.facebook.com/${authorID}/picture?width=512&height=512&access_token=6628568379%7Cc1e620fa708a1d5696fb991c1bde5662`;
       const threadName = threadInfo.threadName || "المجموعة";
 
-      // إنشاء كرت الترحيب كـ Buffer أولاً بالكامل
+      // إنشاء كرت الترحيب البافر
       const imageBuffer = await createWelcomeCard(
         groupImage,
         userAvatar,
@@ -110,27 +111,24 @@ async function sendGroupWelcome(api, threadID, userIDs, authorID) {
         adderName
       );
 
-      // تحديد مسار مجلد مؤقت آمن
+      // حفظ الصورة مؤقتاً في الكاش لضمان استقرار السيرفر
       const tempDir = path.join(__dirname, 'cache');
       await fs.ensureDir(tempDir);
       const tempPath = path.join(tempDir, `welcome_${Date.now()}.png`);
-      
-      // تغيير حاسم: كتابة الملف بشكل متزامن كلياً لمنع الإرسال المزدوج أو الفراغات السوداء
-      fs.writeFileSync(tempPath, imageBuffer);
+      await fs.writeFile(tempPath, imageBuffer);
 
-      // إرسال الكرت والنص الفخم في طلب واحد وحذف الكاش بعد الإرسال فوراً
-      return api.sendMessage({
+      // إرسال النص الفخم مع كرت الصورة المدمج
+      await api.sendMessage({
         body: bodyText,
         mentions,
         attachment: fs.createReadStream(tempPath)
-      }, threadID, (err) => {
-        if (err) log('error', `Send message error: ${err.message}`);
+      }, threadID, () => {
         if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
       });
 
     } else {
-      // إرسال نصي مباشر بدون الاقتراب من ملفات الكانفاس لتفادي الضغط
-      return api.sendMessage({ body: bodyText, mentions }, threadID);
+      // إذا كانوا شخصين أو أكثر، يتم الإرسال نصياً فوراً دون استدعاء لوحة الرسم تفادياً للضغط
+      await api.sendMessage({ body: bodyText, mentions }, threadID);
     }
 
   } catch (error) {
@@ -200,17 +198,17 @@ async function createWelcomeCard(gcImg, userImg, adderImg, userName, userNumber,
         ctx.fillRect(0, 0, width, height);
     }
 
-    ctx.fillStyle = "rgba(0, 0, 0, 0.25)"; 
+    ctx.fillStyle = "rgba(0, 0, 0, 0.25)"; // طبقة تظليل هندسية ناعمة لخلفية النص
     ctx.fillRect(0, 0, width, height);
     
-    // الانتظار الإلزامي لرسم البروفايلات الثلاثية الفخمة بالكامل
+    // رسم البروفايلات الثلاثية المتناسقة بالظلال
     await Promise.all([
         drawProfileImage(ctx, gcImg, width / 2, 200, 200, "#ffffff"),
         drawProfileImage(ctx, userImg, 120, height - 100, 150, "#10b981"),
         drawProfileImage(ctx, adderImg, width - 120, 100, 150, "#3b82f6")
     ]);
 
-    // معالجة نصوص كرت الترحيب
+    // كتابة بيانات المجموعة والترحيب
     ctx.font = 'bold 36px Sans-serif';
     ctx.fillStyle = "#ffffff";
     ctx.textAlign = "center";
