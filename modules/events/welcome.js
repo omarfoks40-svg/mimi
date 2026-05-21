@@ -4,13 +4,16 @@ const fs = require('fs-extra');
 const path = require('path');
 const axios = require('axios');
 
+// روابط الخلفيات السادة الفخمة الجديدة التي أرسلتها
 const backgroundImages = [
-    "https://i.imgur.com/XVRFwns.jpeg",
-    "https://i.imgur.com/DXXvgjb.png",
-    "https://i.imgur.com/LwoDuzZ.jpeg",
-    "https://i.imgur.com/mtSrSYh.jpeg",
-    "https://i.imgur.com/IVvEBc4.jpeg",
-    "https://i.imgur.com/uJcd1bf.jpeg"
+    "https://i.imgur.com/77CvUU2.jpeg",
+    "https://i.imgur.com/4QqIiEv.jpeg",
+    "https://i.imgur.com/As6VYOh.jpeg",
+    "https://i.imgur.com/a75QOVx.jpeg",
+    "https://i.imgur.com/KGzT2oy.jpeg",
+    "https://i.imgur.com/eQz52uW.jpeg",
+    "https://i.imgur.com/Nd6im1S.jpeg",
+    "https://i.imgur.com/ZzCQEwr.jpeg"
 ];
 
 const backgroundCache = new Map();
@@ -18,7 +21,7 @@ const backgroundCache = new Map();
 module.exports = {
   config: {
     name: 'welcome',
-    version: '5.2.0',
+    version: '6.0.0',
     author: 'SINKO',
     eventType: ['log:subscribe']
   },
@@ -47,19 +50,23 @@ module.exports = {
   }
 };
 
+// ============= الدالة الأساسية لمعالجة وإرسال الترحيب =============
 async function sendGroupWelcome(api, threadID, userIDs, authorID) {
   try {
     const threadInfo = await api.getThreadInfo(threadID);
     const mentions = [];
     
+    // إعداد الوقت والتاريخ بتوقيت الخرطوم
     const time = new Date().toLocaleTimeString('ar-EG', { timeZone: 'Africa/Khartoum', hour12: true, hour: '2-digit', minute: '2-digit' });
     const dayName = new Date().toLocaleDateString('ar-EG', { timeZone: 'Africa/Khartoum', weekday: 'long' });
 
+    // جلب معلومات المضيف
     const authorInfo = await api.getUserInfo(authorID);
     const adderName = authorInfo?.[authorID]?.name || "المسؤول";
     const adderTag = `@${adderName}`;
     mentions.push({ tag: adderTag, id: authorID });
 
+    // --- [ التصميم الفخم الملموم للنص ] ---
     let bodyText = `> ˼⭐˹ ترحيب APLIN ↶\n`;
     bodyText += `• ───────────── •\n`;
     bodyText += `⌈👤⌋ الـمـضـيـف ↜ ${adderTag}\n`;
@@ -74,7 +81,7 @@ async function sendGroupWelcome(api, threadID, userIDs, authorID) {
       const name = userInfo?.[id]?.name || "عضو جديد";
       const tag = `@${name}`;
       
-      if (userIDs.length === 1) singleUserName = name;
+      if (userIDs.length === 1) singleUserName = name; 
       
       bodyText += `  ⌯ ${count} ⋞ ${tag} ⋟\n`;
       mentions.push({ tag, id });
@@ -85,15 +92,16 @@ async function sendGroupWelcome(api, threadID, userIDs, authorID) {
     bodyText += `⌈📊⌋ الـعـدد الآن ↜ [ ${threadInfo.participantIDs.length} ]\n`;
     bodyText += `• ───────────── •`;
 
+    // --- [ منطق الصور: التفعيل لشخص واحد فقط ] ---
     if (userIDs.length === 1) {
       const targetUserID = userIDs[0];
       
-      // تعديل روابط الصور لضمان عدم الحظر أو جلب صور سوداء (باستخدام محرك صور فيسبوك المباشر)
       const groupImage = threadInfo.imageSrc || 'https://i.imgur.com/7Qk8k6c.png';
-      const userAvatar = `https://graph.facebook.com/${targetUserID}/picture?type=large`;
-      const adderAvatar = `https://graph.facebook.com/${authorID}/picture?type=large`;
+      const userAvatar = `https://graph.facebook.com/${targetUserID}/picture?width=512&height=512&access_token=6628568379%7Cc1e620fa708a1d5696fb991c1bde5662`;
+      const adderAvatar = `https://graph.facebook.com/${authorID}/picture?width=512&height=512&access_token=6628568379%7Cc1e620fa708a1d5696fb991c1bde5662`;
       const threadName = threadInfo.threadName || "المجموعة";
 
+      // إنشاء كرت الترحيب بالاعتماد على الخلفية السادة الممررة
       const imageBuffer = await createWelcomeCard(
         groupImage,
         userAvatar,
@@ -104,21 +112,25 @@ async function sendGroupWelcome(api, threadID, userIDs, authorID) {
         adderName
       );
 
+      // حفظ الملف بشكل متزامن ثابت لمنع التكرار والصور المزدوجة السوداء
       const tempDir = path.join(__dirname, 'cache');
       await fs.ensureDir(tempDir);
       const tempPath = path.join(tempDir, `welcome_${Date.now()}.png`);
-      await fs.writeFile(tempPath, imageBuffer);
+      fs.writeFileSync(tempPath, imageBuffer);
 
-      await api.sendMessage({
+      // إرسال الكرت والنص معاً في طلب واحد وحذف المؤقت فوراً
+      return api.sendMessage({
         body: bodyText,
         mentions,
         attachment: fs.createReadStream(tempPath)
-      }, threadID, () => {
+      }, threadID, (err) => {
+        if (err) log('error', `Send message error: ${err.message}`);
         if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
       });
 
     } else {
-      await api.sendMessage({ body: bodyText, mentions }, threadID);
+      // إرسال نصي مباشر للشخصين أو أكثر دون الدخول للكانفاس لحماية السيرفر من الضغط
+      return api.sendMessage({ body: bodyText, mentions }, threadID);
     }
 
   } catch (error) {
@@ -126,6 +138,7 @@ async function sendGroupWelcome(api, threadID, userIDs, authorID) {
   }
 }
 
+// ============= دالة تحميل الخلفيات الذكية من الكاش لسرعة الأداء =============
 async function loadBackgroundImage(url) {
     if (backgroundCache.has(url)) return backgroundCache.get(url);
     try {
@@ -138,6 +151,7 @@ async function loadBackgroundImage(url) {
     }
 }
 
+// ============= دالة قص ورسم بروفايلات الأعضاء والجروب =============
 async function drawProfileImage(ctx, imageUrl, x, y, size, borderColor) {
     const radius = size / 2;
     try {
@@ -160,42 +174,46 @@ async function drawProfileImage(ctx, imageUrl, x, y, size, borderColor) {
         ctx.restore();
         return true;
     } catch (error) {
-        // حماية مضافة: إذا فشل الرابط تماماً، يرسم دائرة لونية فخمة بدلاً من المساحة السوداء الكاملة
         ctx.beginPath();
         ctx.arc(x, y, radius, 0, Math.PI * 2);
-        ctx.fillStyle = '#1f2937';
+        ctx.fillStyle = '#374151';
         ctx.fill();
         return false;
     }
 }
 
+// ============= دالة دمج النصوص والبروفايلات فوق الخلفية السادة =============
 async function createWelcomeCard(gcImg, userImg, adderImg, userName, userNumber, threadName, adderName) {
+    // الأبعاد القياسية المتوافقة مع الكروت المرفوعة
     const width = 1200;
     const height = 700;
 
     const canvas = createCanvas(width, height);
     const ctx = canvas.getContext('2d');
 
+    // اختيار خلفية عشوائية من الروابط الجديدة الفخمة الخاصة بك
     const selectedBackground = backgroundImages[Math.floor(Math.random() * backgroundImages.length)];
     const background = await loadBackgroundImage(selectedBackground);
 
     if (background) {
         ctx.drawImage(background, 0, 0, width, height);
     } else {
-        ctx.fillStyle = "#0c1017";
+        ctx.fillStyle = "#0a0a0c";
         ctx.fillRect(0, 0, width, height);
     }
 
-    ctx.fillStyle = "rgba(0, 0, 0, 0.4)"; 
+    // طبقة تظليل ناعمة متناسقة هندسياً لتوضيح الخطوط
+    ctx.fillStyle = "rgba(0, 0, 0, 0.2)"; 
     ctx.fillRect(0, 0, width, height);
     
+    // إسقاط ورسم البروفايلات الثلاثية المتناسقة بالظلال الملونة في أماكن الدوائر السادة
     await Promise.all([
         drawProfileImage(ctx, gcImg, width / 2, 200, 200, "#ffffff"),
         drawProfileImage(ctx, userImg, 120, height - 100, 150, "#10b981"),
         drawProfileImage(ctx, adderImg, width - 120, 100, 150, "#3b82f6")
     ]);
 
-    // تحسين نوع الخط لـ Arial / Sans-Serif الافتراضي لتفادي ظهور الرموز المتقطعة والمربعات
+    // كتابة بيانات المجموعة والترحيب المنسق فوق التصميم
     ctx.font = 'bold 36px Arial, sans-serif';
     ctx.fillStyle = "#ffffff";
     ctx.textAlign = "center";
@@ -210,9 +228,9 @@ async function createWelcomeCard(gcImg, userImg, adderImg, userName, userNumber,
     ctx.fillStyle = welcomeGradient;
     ctx.fillText("WELCOME", width / 2, 450);
 
-    ctx.font = 'bold 44px Arial, sans-serif';
+    ctx.font = 'bold 48px Arial, sans-serif';
     ctx.fillStyle = "#10b981";
-    ctx.fillText(userName, width / 2, 515);
+    ctx.fillText(userName, width / 2, 500);
 
     ctx.font = 'bold 28px Arial, sans-serif';
     ctx.fillStyle = "#e2e8f0";
