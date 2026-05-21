@@ -1,5 +1,3 @@
-
-code:
 const axios = require('axios');
 const fs = require('fs-extra');
 const path = require('path');
@@ -123,4 +121,3 @@ async function handleImageEdit(api, event, prompt, imageUrl) {
     await api.sendMessage({ body: "ظبطتها ليك ؛-؛", attachment: fs.createReadStream(cachePath) }, threadID, () => fs.unlinkSync(cachePath), messageID);
   } catch (e) { api.sendMessage("ما قدرت أعدل الصورة ؛-؛", threadID); }
 }
-
