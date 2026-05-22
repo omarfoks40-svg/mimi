@@ -57,7 +57,7 @@ module.exports = {
     author: "  / SINKO",
     countDown: 5,
     prefix: true,
-    category: "الوسائط ",
+    category: "media",
     description: "📖 بحث في ويكيبيديا",
     aliases: ["wiki", "ويكيبيديا", "wikipedia"],
     guide: { ar: "{pn} [الموضوع]\n{pn} en [topic] ← للإنجليزية" }
