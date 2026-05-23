@@ -5,7 +5,6 @@ const userDBPath = path.join(__dirname, '..', '..', 'database', 'users.json');
 function readDB(p) { try { return fs.existsSync(p) ? JSON.parse(fs.readFileSync(p,'utf8')) : {}; } catch(e){return{};} }
 function writeDB(p,d) { fs.writeFileSync(p, JSON.stringify(d,null,4)); }
 
-// مصفوفة الجوائز الحقيقية
 const SEGMENTS = [
   { label: '💀 جمجمة الخسارة الكاملة',  mult: 0,    chance: 10, icon: '💀' },
   { label: '🪨 حجارة الخسارة الخفيفة -25%',  mult: 0.75, chance: 15, icon: '🪨' },
@@ -18,16 +17,12 @@ const SEGMENTS = [
   { label: '👑 ذهب الميجا الأسطوري x5!!!',   mult: 5,    chance: 3,  icon: '👑' },
 ];
 
-// إطارات الدوران: السهم (👇 أو 👈 أو 👉) بيلف ويشير لاتجاه مختلف في الدائرة الملكية
+// تقليل الإطارات لـ 4 اتجاهات رئيسية لتخفيف الضغط على السيرفر
 const ANIMATION_FRAMES = [
   `🪙  💵  💎\n🪙  👇  💎\n💰  👑  🃏`,
   `🪙  💵  💎\n🪙  👉  💎\n💰  👑  🃏`,
-  `🪙  💵  💎\n🪙  👇  💎\n💰  👑  🃏`,
-  `🪙  💵  💎\n👈  ⚙️  💎\n💰  👑  🃏`,
   `🪙  💵  💎\n🪙  👆  💎\n💰  👑  🃏`,
-  `🪙  💵  💎\n🪙  👈  💎\n💰  👑  🃏`,
-  `🪙  💵  💎\n🪙  👆  💎\n💰  👑  🃏`,
-  `🪙  💵  💎\n🪙  👉  💎\n💰  👑  🃏`
+  `🪙  💵  💎\n👈  ⚙️  💎\n💰  👑  🃏`
 ];
 
 function spin() {
@@ -43,12 +38,12 @@ module.exports = {
   config: {
     name: 'عجلة',
     aliases: ['wheel', 'spin', 'دوامة'],
-    version: '3.0',
+    version: '3.1',
     author: 'سينكو',
     countDown: 5,
     prefix: true,
-    category: 'tools',
-    description: '🎡 عجلة الحظ الدائرية بالسهم المتحرك والموجات!',
+    category: 'العاب',
+    description: '🎡 عجلة الحظ الدائرية بالسهم المتحرك والموجات آمنة ضد التعليق!',
     guide: { ar: '{pn} <المبلغ>' }
   },
 
@@ -85,16 +80,15 @@ module.exports = {
       );
     }
 
-    // 1️⃣ إرسال الشكل الدائري المبدئي للعجلة وبداية حركة السهم
     const msg = await api.sendMessage(
       `🪙  💵  💎\n🪙  ⏳  💎\n💰  👑  🃏\n\n🎰 جاري تدوير السهم وسط الذهب والقروش...`,
       threadID
     );
 
-    // 2️⃣ حلقة التعديل الحركية (السهم بيلف جوة الدائرة)
+    // تلف 4 مرات فقط وكل لفة بتاخد ثانية و 200 ملي ثانية لتجنب الحظر والتعليق
     let animationTicks = 0;
-    while (animationTicks < 8) {
-      await new Promise(r => setTimeout(r, 500)); // سرعة لفت السهم
+    while (animationTicks < 4) {
+      await new Promise(r => setTimeout(r, 1200)); 
       const frame = ANIMATION_FRAMES[animationTicks % ANIMATION_FRAMES.length];
       
       await api.editMessage(
@@ -104,7 +98,6 @@ module.exports = {
       animationTicks++;
     }
 
-    // 3️⃣ حساب النتيجة الحقيقية بعد انتهاء الدوران
     const segment = spin();
     const returned = Math.floor(bet * segment.mult);
     const diff     = returned - bet;
@@ -116,7 +109,9 @@ module.exports = {
     const diffStr = diff > 0 ? `+${diff}` : diff === 0 ? `±0` : `${diff}`;
     const arrow   = diff > 0 ? '📈 أرباح ممتازة' : diff < 0 ? '📉 خسارة مفجعة' : '➡️ تعادل صافي';
 
-    // 4️⃣ الإطار النهائي: وضع السهم يشير للأسفل وتثبيت الجائزة التي وقع عليها
+    // ننتظر ثانية أخيرة قبل التعديل النهائي لضمان وصول الطلب
+    await new Promise(r => setTimeout(r, 1000));
+
     const finalReport = 
 `🪙  💵  💎
 🪙  👇  💎
