@@ -15,12 +15,12 @@ module.exports = {
     config: {
         name: 'توب',
         aliases: ['rich', 'أثرياء', 'ليدربورد'],
-        version: '2.1',
+        version: '2.2',
         author: 'سينكو',
         countDown: 10,
         prefix: true,
         category: 'tools',
-        description: 'قائمة أثرى اللاعبين تظهر وتتحدث شخصاً تلو الآخر بزخرفة المسار.',
+        description: 'قائمة أثرى اللاعبين تظهر وتتحدث بسلاسة وبدون تعليق.',
         guide: { ar: '{pn}' }
     },
 
@@ -51,7 +51,6 @@ module.exports = {
             return api.sendMessage('●─────── ⌬ ───────●\n┇ ❌ ما في بيانات بعد\n●─────── ⌬ ───────●', threadID, messageID);
         }
 
-        // 1️⃣ إرسال الرسالة المبدئية بالزخرفة الهندسية
         const msg = await api.sendMessage(
             `●─────── ⌬ ───────●\n` +
             `┇ 💰 جاري جرد حسابات الخزائن...\n` +
@@ -63,9 +62,9 @@ module.exports = {
         const medals = ['🥇', '🥈', '🥉'];
         let currentList = '';
 
-        // 2️⃣ حلقة التكرار للتعديل شخص شخص مع الحفاظ على المسار الطولي
+        // تعديل الوقت لـ 1500 ملي ثانية عشان الفيس ما يحظر التعديل المتتالي
         for (let i = 0; i < sorted.length; i++) {
-            await new Promise(r => setTimeout(r, 500));
+            await new Promise(r => setTimeout(r, 1500));
 
             const [id, data] = sorted[i];
             const medal = medals[i] || `${i + 1}.`;
@@ -73,16 +72,17 @@ module.exports = {
 
             currentList += `┇ ${medal} ${data.name}${isMe}\n┇    💰 الإجمالي: ${data.total.toLocaleString()}\n┇\n`;
 
-            // تعديل حي متتابع مع الحفاظ على بنية الخطوط
-            await api.editMessage(
-                `●─────── ⌬ ───────●\n` +
-                `┇ 🏆 أثرى اللاعبين (جاري التحديث...)\n` +
-                `┇\n` +
-                `${currentList}` +
-                `┇ ⏳ جاري سحب الحساب التالي...\n` +
-                `●─────── ⌬ ───────●`,
-                msg.messageID
-            );
+            // نحدث الرسالة كل مرتين أو لو وصلنا للنهاية لتخفيف العبء ومنع التعليق
+            if (i % 2 === 1 || i === sorted.length - 1) {
+                await api.editMessage(
+                    `●─────── ⌬ ───────●\n` +
+                    `┇ 🏆 أثرى اللاعبين (جاري التحديث...)\n` +
+                    `┇\n` +
+                    `${currentList}` +
+                    (i === sorted.length - 1 ? '' : `┇ ⏳ جاري سحب الحساب التالي...\n●─────── ⌬ ───────●`),
+                    msg.messageID
+                );
+            }
         }
 
         const allSorted = Object.entries(totals).sort((a, b) => b[1].total - a[1].total);
@@ -93,7 +93,8 @@ module.exports = {
             footer = `┇ 📊 رتبتك: #${myRank + 1}\n`;
         }
 
-        // 3️⃣ التقرير النهائي المختوم بالزخرفة الكاملة
+        await new Promise(r => setTimeout(r, 1000));
+
         const finalReport = 
             `●─────── ⌬ ───────●\n` +
             `┇ ⦿ ⟬ أثرى اللاعبين ⟭\n` +
