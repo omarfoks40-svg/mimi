@@ -15,12 +15,12 @@ module.exports = {
     config: {
         name: 'توب',
         aliases: ['rich', 'أثرياء', 'ليدربورد'],
-        version: '1.0',
+        version: '2.1',
         author: 'سينكو',
         countDown: 10,
         prefix: true,
         category: 'tools',
-        description: 'قائمة أثرى اللاعبين (محفظة + بنك).',
+        description: 'قائمة أثرى اللاعبين تظهر وتتحدث شخصاً تلو الآخر بزخرفة المسار.',
         guide: { ar: '{pn}' }
     },
 
@@ -48,24 +48,60 @@ module.exports = {
             .slice(0, 10);
 
         if (sorted.length === 0) {
-            return api.sendMessage('●─────── ⌬ ───────●\n┇ ما في بيانات بعد\n●─────── ⌬ ───────●', threadID, messageID);
+            return api.sendMessage('●─────── ⌬ ───────●\n┇ ❌ ما في بيانات بعد\n●─────── ⌬ ───────●', threadID, messageID);
         }
+
+        // 1️⃣ إرسال الرسالة المبدئية بالزخرفة الهندسية
+        const msg = await api.sendMessage(
+            `●─────── ⌬ ───────●\n` +
+            `┇ 💰 جاري جرد حسابات الخزائن...\n` +
+            `┇ [ ⏳ جاري الفرز والتصنيف ]\n` +
+            `●─────── ⌬ ───────●`,
+            threadID
+        );
 
         const medals = ['🥇', '🥈', '🥉'];
-        let msg = `●─────── ⌬ ───────●\n┇ ⦿ ⟬ أثرى اللاعبين ⟭\n┇\n`;
+        let currentList = '';
 
-        sorted.forEach(([id, data], i) => {
+        // 2️⃣ حلقة التكرار للتعديل شخص شخص مع الحفاظ على المسار الطولي
+        for (let i = 0; i < sorted.length; i++) {
+            await new Promise(r => setTimeout(r, 500));
+
+            const [id, data] = sorted[i];
             const medal = medals[i] || `${i + 1}.`;
             const isMe = id === senderID ? ' ← أنت' : '';
-            msg += `┇ ${medal} ${data.name}${isMe}\n┇    💰 الإجمالي: ${data.total.toLocaleString()}\n┇\n`;
-        });
 
-        const myRank = sorted.findIndex(([id]) => id === senderID);
-        if (myRank >= 0) {
-            msg += `┇ 📊 رتبتك: #${myRank + 1}\n`;
+            currentList += `┇ ${medal} ${data.name}${isMe}\n┇    💰 الإجمالي: ${data.total.toLocaleString()}\n┇\n`;
+
+            // تعديل حي متتابع مع الحفاظ على بنية الخطوط
+            await api.editMessage(
+                `●─────── ⌬ ───────●\n` +
+                `┇ 🏆 أثرى اللاعبين (جاري التحديث...)\n` +
+                `┇\n` +
+                `${currentList}` +
+                `┇ ⏳ جاري سحب الحساب التالي...\n` +
+                `●─────── ⌬ ───────●`,
+                msg.messageID
+            );
         }
-        msg += `●─────── ⌬ ───────●`;
 
-        return api.sendMessage(msg, threadID, messageID);
+        const allSorted = Object.entries(totals).sort((a, b) => b[1].total - a[1].total);
+        const myRank = allSorted.findIndex(([id]) => id === senderID);
+        
+        let footer = '';
+        if (myRank >= 0) {
+            footer = `┇ 📊 رتبتك: #${myRank + 1}\n`;
+        }
+
+        // 3️⃣ التقرير النهائي المختوم بالزخرفة الكاملة
+        const finalReport = 
+            `●─────── ⌬ ───────●\n` +
+            `┇ ⦿ ⟬ أثرى اللاعبين ⟭\n` +
+            `┇\n` +
+            `${currentList}` +
+            `${footer}` +
+            `●─────── ⌬ ───────●`;
+
+        return api.editMessage(finalReport, msg.messageID);
     }
 };
