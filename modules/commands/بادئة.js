@@ -7,8 +7,8 @@ module.exports = {
     author: 'سينكو',
     countDown: 5,
     prefix: true,
-    groupAdminOnly: true,
-    description: 'يضبط بادئة المجموعة ويغير كنية البوت تلقائياً.',
+    groupAdminOnly: true, // تفعيل الخاصية في الإعدادات
+    description: 'يضبط بادئة المجموعة ويغير كنية البوت تلقائياً للمشرفين فقط.',
     category: 'group',
     guide: {
       ar: '{pn} [البادئة_الجديدة] أو اتركها فارغة للعمل بدون بادئة'
@@ -17,7 +17,27 @@ module.exports = {
 
   onStart: async ({ api, event, args }) => {
     try {
-      const { threadID, messageID } = event;
+      const { threadID, messageID, senderID, isGroup } = event;
+      
+      // التحقق أولاً إذا كان الأمر مستخدم داخل مجموعة
+      if (!isGroup) {
+        return api.sendMessage("❌ هذا الأمر يمكن استخدامه داخل المجموعات فقط.", threadID, messageID);
+      }
+
+      // جلب معلومات المجموعة للتحقق من المشرفين
+      const threadInfo = await api.getThreadInfo(threadID);
+      const adminIDs = threadInfo.adminIDs.map(admin => admin.id);
+
+      // التحقق إذا كان المرسل هو أحد المشرفين
+      if (!adminIDs.includes(senderID)) {
+        return api.sendMessage(
+          "●───── ✾ ⌬ ✾ ─────●\n" +
+          "✾ ┇ ❌ عذراً! هذا الأمر متاح لمشرفي المجموعة فقط 🙅‍♂️\n" +
+          "●───── ✾ ⌬ ✾ ─────●", 
+          threadID, messageID
+        );
+      }
+
       const botID = api.getCurrentUserID();
       let newPrefix = args[0] || '';
 
@@ -25,7 +45,7 @@ module.exports = {
       if (!threadData) {
         return api.sendMessage(
           "●───── ✾ ⌬ ✾ ─────●\n" +
-          "✾ ┇ ❌ بـيـانـات الـمـجـمـوعة\n" +
+          "✾ ┇ ❌ بـيـانـات الـمـجـمـوعة غـيـر مـوجـودة\n" +
           "●───── ✾ ⌬ ✾ ─────●", 
           threadID, messageID
         );
@@ -35,11 +55,15 @@ module.exports = {
       threadData.settings.prefix = newPrefix;
       Threads.set(threadID, threadData);
 
-      // --- الميزة الجديدة: تغيير كنية البوت بالورود ---
+      // --- تغيير كنية البوت بالورود ---
       const botName = "𝙰𝙱𝙸𝙻𝙴𝙽 𝙸𝙻  ✎"; 
       const newNickname = newPrefix === '' ? `✔️ ┇ ${botName}` : `✔️ ┇  ❨${newPrefix}❩  ${botName}`;
       
-      await api.changeNickname(newNickname, threadID, botID);
+      try {
+        await api.changeNickname(newNickname, threadID, botID);
+      } catch (e) {
+        console.log("فشل تغيير الكنية بسبب نقص صلاحيات البوت كمشرف");
+      }
 
       let msg = `●─────── ✾ ⌬ ✾ ─────●\n`;
       msg += `✾ ┇ ⦿ ⟬ تـحـديـث الـبـادئـة ✅ ⟭\n✾ ┇\n`;
