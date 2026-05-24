@@ -26,7 +26,7 @@ module.exports = {
         prefix: true,
         groupAdminOnly: false,
         description: 'عرض رصيدك أو رصيد شخص آخر.',
-        category: 'اقتصاد',
+        category: 'tools',
         guide: {
             ar: '   {pn}\n   {pn} [@منشن | uid]'
         },
