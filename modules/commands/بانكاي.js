@@ -9,7 +9,7 @@ module.exports = {
     prefix: true,
     groupAdminOnly: true,
     description: 'البحث عن الأعضاء بالاسم وطردهم بالرد على الرقم مع تفاعل ساخر.',
-    category: 'الترفيه',
+    category: 'group',
     guide: {
       ar: '{pn} اسم العضو المراد البحث عنه | @منشن | بالرد على رسالة'
     },
