@@ -628,7 +628,7 @@ async function finalLeaderboard(api, threadID, session) {
     `${winner ? `🥇 الفائز: ${winner.name} بـ ${winner.score} نقطة 🎉` : ''}\n` +
     `⟣ ✧ شكراً للجميع على المشاركة ✧ ⟢\n` +
     `✦─━── •﹝🌿﹞• ──━─✦\n` +
-    `✦ 『 𝑀𝐸𝐿𝐼𝑂𝐷𝐴𝑆  』`,
+    `✦ 『 aplin  』`,
     threadID
   );
 
@@ -649,7 +649,7 @@ module.exports = {
     prefix: true,
     groupAdminOnly: false,
     description: 'نظام فعاليات متكامل — تسجيل 5 لاعبين ، 10 جولات ، انتقال تلقائي',
-    category: 'Group',
+    category: 'group',
   },
 
   // ─── الأمر الرئيسي ───
@@ -683,7 +683,7 @@ module.exports = {
       `✦─━── •﹝🌿﹞• ──━─✦\n` +
       `⟣ ✧ هـذا الـقـسـم قـيـد الـتـطـويـر ✧ ⟢\n` +
       `✦─━── •﹝🌿﹞• ──━─✦\n\n` +
-      `✦ 『 𝑀𝐸𝐿𝐼𝑂𝐷𝐴𝑆  』`;
+      `✦ 『 aplin  』`;
 
     await api.sendMessage(welcomeMsg, threadID);
 
