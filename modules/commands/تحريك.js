@@ -2,14 +2,14 @@ const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
 
-// دالة الترجمة التلقائية المدمجة السريعة عبر خوادم جوجل المستقرة
+// دالة الترجمة التلقائية المستقرة عبر خوادم جوجل السحابية
 async function translateToEnglish(text) {
     try {
         const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=en&dt=t&q=${encodeURIComponent(text)}`;
         const res = await axios.get(url);
         return res.data[0].map(item => item[0]).join('');
     } catch (e) {
-        return text; // في حال حدوث خطأ نادر، نرسل النص كما هو كخطة بديلة
+        return text; // خطة بديلة: إرسال النص الأصلي في حال فشل الترجمة
     }
 }
 
@@ -17,13 +17,13 @@ module.exports = {
     config: {
         name: 'تحريك',
         aliases: ['تخيل_فيديو', 'video', 'veo', 'صنع_فيديو'],
-        version: '2.0',
+        version: '3.0',
         author: 'سينكو',
-        countDown: 20, // وقت تبريد مريح لمنع السبام أثناء المعالجة
+        countDown: 15,
         prefix: true,
-        category: 'ai',
-        description: '🎬 توليد وتحريك فيديوهات احترافية من النصوص العربية (تترجم تلقائياً) أو الرد على الصور.',
-        guide: { ar: '{pn} <وصف الفيديو بالعربي> أو رد على صورة واكتب {pn} <طبيعة الحركة>' }
+        category: 'ذكاء اصطناعي',
+        description: '🎬 تحريك وتوليد فيديوهات احترافية بنظام حماية ذكي ضد الفشل وضغط السيرفرات.',
+        guide: { ar: '{pn} <الوصف بالعربي> أو رد على صورة واكتب {pn}' }
     },
 
     onStart: async ({ api, event, args }) => {
@@ -32,7 +32,7 @@ module.exports = {
         let userPrompt = args.join(" ");
         let imageUrl = null;
 
-        // التحقق مما إذا كان المستخدم يود تحريك صورة عبر الرد (Reply)
+        // سحب رابط الصورة من الماسنجر في حال الرد
         if (type === "message_reply" && messageReply.attachments && messageReply.attachments.length > 0) {
             const attachment = messageReply.attachments[0];
             if (attachment.type === "photo") {
@@ -52,71 +52,82 @@ module.exports = {
             );
         }
 
-        // 1️⃣ إرسال رسالة التجهيز والتعديل الحي المضغوطة الموزونة للماسنجر
+        // إرسال شاشة المعالجة التنقيطية الموزونة والخاصة بالماسنجر
         const msg = await api.sendMessage(
             `....................\n` +
             `. 🎬 AI ANIMATOR   .\n` +
             `....................\n` +
-            `. [ ⏳ 15% ]        .\n` +
-            `. 🔍 جاري قراءة النص .\n` +
-            `. والترجمة الفورية... .\n` +
+            `. [ ⏳ 20% ]        .\n` +
+            `. 🔍 جاري معالجة النص .\n` +
+            `. والترجمة الذكية... .\n` +
             `....................`,
             threadID
         );
 
         try {
-            // تنفيذ الترجمة التلقائية إلى الإنجليزية خلف الكواليس
-            let finalPromptEn = "cinematic camera movement, slow motion, high quality";
+            // 1️⃣ الترجمة الفورية خلف الكواليس
+            let finalPromptEn = "cinematic camera movement, high quality, 4k, smooth animation";
             if (userPrompt) {
                 finalPromptEn = await translateToEnglish(userPrompt);
             }
 
-            // تحديث حالة المعالجة حياً لإعلام الأعضاء بالترجمة والبدء
             await api.editMessage(
                 `....................\n` +
                 `. 🎬 AI ANIMATOR   .\n` +
                 `....................\n` +
-                `. [ ⚙️ 50% ]        .\n` +
-                `. 🧠 تم التمرير لـ Veo .\n` +
-                `. جاري رندرة اللقطات .\n` +
+                `. [ ⚙️ 60% ]        .\n` +
+                `. 📡 جاري رندرة الفيديو .\n` +
+                `. عبر خوادم الذكاء... .\n` +
                 `....................`,
                 msg.messageID
             );
 
-            // 2️⃣ بناء رابط الطلب لـ API الفيديوهات باستخدام النص المترجم
-            let apiUrl = `https://gen.pollinations.ai/video/${encodeURIComponent(finalPromptEn)}?model=veo&duration=4`;
+            // 2️⃣ مصفوفة الموديلات المتاحة للتحريك (لتجنب ضغط السيرفر الخارجي)
+            // الخطة A: veo (جوجل) | الخطة B: wan (علي بابا) | الخطة C: ltxvideo
+            const modelsToTry = ['veo', 'wan', 'ltxvideo'];
+            let response = null;
+            let successModel = '';
 
-            // إذا كانت هناك صورة، نمررها في الرابط أيضاً ليتم تحريكها بناء على الترجمة
-            if (imageUrl) {
-                apiUrl += `&image=${encodeURIComponent(imageUrl)}`;
+            // تشفير دقيق ومأمن للنص ورابط الصورة لمنع كسر الروابط
+            const encodedPrompt = encodeURIComponent(finalPromptEn);
+            const encodedImage = imageUrl ? encodeURIComponent(imageUrl) : '';
+
+            // حلقة ذكية تجرب الموديلات واحد ورا التاني لو الأول فشل
+            for (const model of modelsToTry) {
+                try {
+                    let apiUrl = `https://gen.pollinations.ai/video/${encodedPrompt}?model=${model}&duration=4`;
+                    if (imageUrl) {
+                        apiUrl += `&image=${encodedImage}`;
+                    }
+
+                    // محاولة سحب الفيديو من الموديل الحالي مع مهلة انتظار 45 ثانية
+                    response = await axios.get(apiUrl, { responseType: 'arraybuffer', timeout: 45000 });
+                    
+                    if (response && response.data) {
+                        successModel = model;
+                        break; // خرجنا من الحلقة طالما التوليد نجح!
+                    }
+                } catch (modelError) {
+                    console.log(`⚠️ الموديل [${model}] مشغول حالياً، جاري التبديل للموديل البديل...`);
+                    continue; // الموديل الحالي فشل، طيران للموديل البعده تلقائياً
+                }
             }
 
-            // لفة أنيميشن حركية أخيرة قبل السحب المباشر
-            await new Promise(r => setTimeout(r, 1500));
-            await api.editMessage(
-                `....................\n` +
-                `. 🎬 AI ANIMATOR   .\n` +
-                `....................\n` +
-                `. [ ⚡ 85% ]        .\n` +
-                `. 🎞️ جاري سحب المقطع .\n` +
-                `. وتحميل اللقطات... .\n` +
-                `....................`,
-                msg.messageID
-            );
-
-            // 3️⃣ سحب الفيديو كـ Buffer من سيرفرات الذكاء الاصطناعي
-            const response = await axios.get(apiUrl, { responseType: 'arraybuffer' });
-            
-            // تحديد مسار مؤقت نظيف داخل مجلد الكاش
-            const videoPath = path.join(__dirname, 'cache', `ai_video_${Date.now()}.mp4`);
-            
-            if (!fs.existsSync(path.join(__dirname, 'cache'))) {
-                fs.mkdirSync(path.join(__dirname, 'cache'));
+            // إذا مرت الحلقة على كل الموديلات وفشلت كلها بسبب سقوط السيرفر الخارجي بالكامل
+            if (!response || !response.data) {
+                throw new Error("All AI models are currently offline or overloaded.");
             }
 
+            // 3️⃣ حفظ مقطع الفيديو في مجلد الكاش المؤقت
+            const cacheDir = path.join(__dirname, 'cache');
+            if (!fs.existsSync(cacheDir)) {
+                fs.mkdirSync(cacheDir);
+            }
+
+            const videoPath = path.join(cacheDir, `ai_video_${Date.now()}.mp4`);
             fs.writeFileSync(videoPath, Buffer.from(response.data, 'binary'));
 
-            // 4️⃣ التعديل النهائي الناجح قبل إرسال المقطع في الروم
+            // 4️⃣ التعديل النهائي قبل الرفع للروم
             await api.editMessage(
                 `....................\n` +
                 `. ✅ SUCCESS 100%  .\n` +
@@ -127,24 +138,22 @@ module.exports = {
                 msg.messageID
             );
 
-            // إرسال مقطع الفيديو النهائي وتثبيته في الشات كمرفق مع عرض الترجمة للأعضاء
+            // إرسال الفيديو النهائي وحذفه فوراً للحفاظ على مساحة جهازك
             return api.sendMessage({
-                body: `🎬 تم توليد مقطعك السينمائي بنجاح!\n\n📝 طلبك: ${userPrompt || "تحريك صورة"}\n🌐 الترجمة الذكية: ${finalPromptEn}\n⚙️ الموديل: Google Veo`,
+                body: `🎬 تم التوليد والتحريك بنجاح!\n\n📝 طلبك: ${userPrompt || "تحريك صورة ثابتة"}\n⚙️ الموديل النشط: ${successModel.toUpperCase()}`,
                 attachment: fs.createReadStream(videoPath)
             }, threadID, () => {
-                // مسح ملف الفيديو المؤقت تلقائياً لتوفير مساحة الذاكرة في السيرفر
                 if (fs.existsSync(videoPath)) fs.unlinkSync(videoPath);
             }, messageID);
 
         } catch (error) {
-            console.error("AI Video Error:", error);
-            
-            // إخطار الروم بالفشل في حال حدوث ضغط على السيرفر الخارجي للرندرة
+            console.error("AI Video Critical Error:", error);
+            // إعلام الجروب بالفشل النهائي في حال سقوط الشبكة الخارجية بالكامل
             return api.editMessage(
                 `....................\n` +
                 `. ❌ AI ERROR      .\n` +
                 `....................\n` +
-                `. فشل خادم التوليد  .\n` +
+                `. السيرفر الخارجي مضغوط .\n` +
                 `. يرجى المحاولة لاحقاً .\n` +
                 `....................`,
                 msg.messageID
