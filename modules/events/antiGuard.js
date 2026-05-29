@@ -3,7 +3,7 @@ const { Threads } = require('../../database/database');
 module.exports = {
   config: {
     name: "antiGuard",
-    eventType: ["log:subscribe", "log:unsubscribe", "log:thread-name", "log:thread-icon", "log:user-nickname", "log:thread-admins"],
+    eventType: ["log:subscribe", "log:unsubscribe", "log:thread-name", "log:thread-icon", "log:user-nickname"],
     version: "3.0.0",
     author: "محمد (SINKO) / Gemini",
     description: "حماية احترافية - دمج نظام الألقاب الذكي مع قاعدة البيانات"
@@ -68,47 +68,6 @@ module.exports = {
       // --- [ 4. حماية صورة المجموعة ] ---
       if (logMessageType === "log:thread-icon" && (anti.antiChangeGroupImage === true || anti.antiIcon === true)) {
          return api.sendMessage("🛡️ تغيير صورة المجموعة ممنوع يا وهم.", threadID);
-      }
-
-      // --- [ 5. حماية الأدمنية ] ---
-      if (logMessageType === "log:thread-admins" && anti.antiAdminProtect === true) {
-        const data = logMessageData || {};
-
-        // نستخرج المعرف المتأثر واسم الحدث (يختلف حسب إصدار المكتبة)
-        const targetID = String(
-          data.TARGET_ID || data.targetID || data.target_id || ""
-        );
-        const adminEvent = String(
-          data.ADMIN_EVENT || data.adminEvent || data.admin_event || ""
-        ).toUpperCase();
-
-        // نتصرف فقط عند إزالة مسؤول
-        if (targetID && adminEvent.includes("REMOVAL")) {
-          const attackerID = String(author);
-
-          // لا نعاقب البوت نفسه
-          if (attackerID === String(botID)) return;
-
-          try {
-            // 1. أعد المسؤول المُزال
-            await api.changeAdminStatus(threadID, targetID, true);
-          } catch (_) {}
-
-          try {
-            // 2. انزع صلاحية من قام بالإزالة
-            await api.changeAdminStatus(threadID, attackerID, false);
-          } catch (_) {}
-
-          return api.sendMessage(
-            `🛡️ حماية الأدمنية مفعّلة!\n` +
-            `╮──────────────⟢ـ\n` +
-            `​❆˹┊ تمت استعادة صلاحيات المسؤول المُزال.\n` +
-            `​❆˹┊ تم سحب صلاحيات من قام بالإزالة.\n` +
-            `╯──────────────⟢ـ\n` +
-            `⚡ لا أحد يلعب في صلاحيات المسؤولين!`,
-            threadID
-          );
-        }
       }
 
     } catch (err) {
