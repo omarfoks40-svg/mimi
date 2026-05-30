@@ -4,7 +4,7 @@
   "description": "A powerful Facebook Messenger bot built with Node.js, featuring command support, media handling, and advanced logging.",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node ."
   },
   "author": "SINKO",
   "license": "MIT",
@@ -29,7 +29,7 @@
     "canvas": "^2.11.2",
     "chalk": "^4.1.2",
     "colors": "^1.4.0",
-    "express": "^4.19.2",
+    "express": "^5.0.6",
     "fca-priyansh": "^21.0.0",
     "form-data": "^4.0.0",
     "fs-extra": "^11.1.1",
