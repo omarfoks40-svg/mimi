@@ -1,48 +1,105 @@
-const { spawn } = require('child_process');
+const express = require('express');
+const login = require('fca-horizon'); // النسخة المستخدمة لديك للاتصال
+const fs = require('fs-extra');
+const path = require('path');
 const { log } = require('./logger/logger');
 
-let botProcess;
-let restartCount = 0;
-const MAX_RESTARTS = 5; 
-const RESTART_DELAY = 5000;
+const app = express();
+const PORT = process.env.PORT || 3000;
 
-function startBot() {
-  if (botProcess) {
-    log('info', 'Stopping existing bot process...');
-    botProcess.kill(); 
-  }
+app.use(express.json());
+app.use(express.static(path.join(__dirname, 'public')));
 
-  log('info', 'Starting bot...');
-  botProcess = spawn('node', ['main.js'], { stdio: 'inherit' });
+// تخزين قائمة الحسابات المفعلة وجلساتها بالذاكرة
+const activeBots = new Map();
 
-  botProcess.on('close', (code) => {
-    log('info', `Bot process exited with code ${code}`);
-    if (code === 2) { 
-      log('info', 'Bot is restarting...');
-      setTimeout(startBot, RESTART_DELAY);
-    } else if (code !== 0 && restartCount < MAX_RESTARTS) { 
-      restartCount++;
-      log('warn', `Restarting bot in ${RESTART_DELAY / 1000} seconds... (Attempt ${restartCount}/${MAX_RESTARTS})`);
-      setTimeout(startBot, RESTART_DELAY);
-    } else if (restartCount >= MAX_RESTARTS) {
-      log('error', `Bot stopped after ${MAX_RESTARTS} restarts. Please check for errors.`);
-    } else {
-      log('info', 'Bot exited normally.');
-    }
-  });
+// 📂 محاكاة قراءة مجلد الأوامر (تأكد من مطابقة المسار لمجلد الأوامر الحقيقي لديك)
+const commandsPath = path.join(__dirname, 'commands');
+let availableCommands = [];
 
-  botProcess.on('error', (err) => {
-    log('error', `Failed to start bot process: ${err.message}`);
-  });
+if (fs.existsSync(commandsPath)) {
+    availableCommands = fs.readdirSync(commandsPath)
+                          .filter(file => file.endsWith('.js'))
+                          .map(file => file.replace('.js', ''));
+} else {
+    // قائمة أوامر افتراضية كـ Fallback في حال عدم توفر المجلد حالياً
+    availableCommands = ['تحريك', 'اعدادات', 'قمار', 'سوق', 'معلومات', ' help'];
 }
 
+// 📡 1. مسار إرسال قائمة الأوامر للـ HTML
+app.get('/api/available-commands', (req, res) => {
+    res.json({ count: availableCommands.length, commands: availableCommands });
+});
 
-startBot();
+// 🚀 2. استقبال بيانات التفعيل وتشغيل حساب العضو بالأوامر المحددة
+app.post('/api/launch', async (req, res) => {
+    const { appStateString, botName, prefix, allowedCommands } = req.body;
+
+    try {
+        const parsedState = JSON.parse(appStateString);
+
+        // تشغيل الجلسة المستقلة للحساب الحالي عبر الـ fca
+        login({ appState: parsedState }, (err, api) => {
+            if (err) {
+                log('error', `FCA Login Failed for ${botName}: ${err.message}`);
+                return res.status(500).json({ success: false, error: "كود الحساب غير صالح أو منتهي الصلاحية!" });
+            }
+
+            api.setOptions({ listenEvents: true, selfListen: false, online: true });
+            log('info', `🟢 البوت [${botName}] انطلق بنجاح في حساب مستقل.`);
+
+            // حفظ الجلسة داخل الـ Map
+            activeBots.set(botName, { api, prefix, allowedCommands });
+
+            // الاستماع للرسائل الواردة لحساب هذا المشترك بالذات
+            api.listenMqtt(async (listenErr, event) => {
+                if (listenErr) return;
+                if (!event.body) return;
+
+                const message = event.body.trim();
+                const currentPrefix = prefix || "!";
+
+                if (!message.startsWith(currentPrefix)) return;
+
+                const args = message.slice(currentPrefix.length).split(/ +/);
+                const commandName = args.shift().toLowerCase();
+
+                // 🌟 التحقق الذكي: هل هذا الأمر اختاره العضو في لوحة التحكم حقتك؟
+                if (allowedCommands && allowedCommands.length > 0) {
+                    if (!allowedCommands.includes(commandName)) {
+                        // إذا العضو ما فعل هذا الأمر في نسخته، يتجاهله البوت تماماً
+                        return;
+                    }
+                }
+
+                // تشغيل منطق الأمر المستدعى (مثال استدعاء ملفات مجلد commands)
+                try {
+                    const cmdFile = path.join(commandsPath, `${commandName}.js`);
+                    if (fs.existsSync(cmdFile)) {
+                        const command = require(cmdFile);
+                        if (command && command.onStart) {
+                            await command.onStart({ api, event, args });
+                        }
+                    }
+                } catch (cmdErr) {
+                    log('error', `Error executing [${commandName}] on bot [${botName}]: ${cmdErr.message}`);
+                }
+            });
+        });
+
+        return res.json({ success: true });
+
+    } catch (e) {
+        return res.status(400).json({ success: false, error: "صيغة الـ appState غير صحيحة، يرجى تمرير كود JSON سليم." });
+    }
+});
+
+// تشغيل السيرفر الأساسي للوحة
+app.listen(PORT, () => {
+    log('info', `🌐 Aplin AI Server is running on port ${PORT}`);
+});
 
 process.on('SIGINT', () => {
-  log('info', 'Ctrl+C detected. Stopping bot...');
-  if (botProcess) {
-    botProcess.kill();
-  }
-  process.exit(0);
+    log('info', 'Stopping server and killing sessions...');
+    process.exit(0);
 });
