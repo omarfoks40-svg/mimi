@@ -1,8 +1,7 @@
 const express = require('express');
-const login = require('fca-horizon'); // النسخة المستخدمة لديك للاتصال
+const login = require('fca-priyansh'); // المكتبة الرسمية المعتمدة في سورس أبلين حقك
 const fs = require('fs-extra');
 const path = require('path');
-const { log } = require('./logger/logger');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -13,8 +12,8 @@ app.use(express.static(path.join(__dirname, 'public')));
 // تخزين قائمة الحسابات المفعلة وجلساتها بالذاكرة
 const activeBots = new Map();
 
-// 📂 محاكاة قراءة مجلد الأوامر (تأكد من مطابقة المسار لمجلد الأوامر الحقيقي لديك)
-const commandsPath = path.join(__dirname, 'commands');
+// 📂 قراءة مجلد الأوامر المباشر من سورس أبلين
+const commandsPath = path.join(__dirname, 'scripts', 'commands');
 let availableCommands = [];
 
 if (fs.existsSync(commandsPath)) {
@@ -22,8 +21,8 @@ if (fs.existsSync(commandsPath)) {
                           .filter(file => file.endsWith('.js'))
                           .map(file => file.replace('.js', ''));
 } else {
-    // قائمة أوامر افتراضية كـ Fallback في حال عدم توفر المجلد حالياً
-    availableCommands = ['تحريك', 'اعدادات', 'قمار', 'سوق', 'معلومات', ' help'];
+    // قائمة أوامر افتراضية في حال اختلف مسار المجلد عندك
+    availableCommands = ['تحريك', 'اعدادات', 'قمار', 'سوق', 'معلومات', 'help'];
 }
 
 // 📡 1. مسار إرسال قائمة الأوامر للـ HTML
@@ -38,15 +37,15 @@ app.post('/api/launch', async (req, res) => {
     try {
         const parsedState = JSON.parse(appStateString);
 
-        // تشغيل الجلسة المستقلة للحساب الحالي عبر الـ fca
+        // تشغيل الجلسة المستقلة للحساب الحالي عبر الـ fca-priyansh
         login({ appState: parsedState }, (err, api) => {
             if (err) {
-                log('error', `FCA Login Failed for ${botName}: ${err.message}`);
-                return res.status(500).json({ success: false, error: "كود الحساب غير صالح أو منتهي الصلاحية!" });
+                console.error(`[Aplin Error] Login Failed for ${botName}: ${err.message}`);
+                return res.status(500).json({ success: false, error: "كود الحساب (appState) غير صالح أو منتهي الصلاحية!" });
             }
 
             api.setOptions({ listenEvents: true, selfListen: false, online: true });
-            log('info', `🟢 البوت [${botName}] انطلق بنجاح في حساب مستقل.`);
+            console.log(`\x1b[32m🟢 [Aplin AI] تم تفعيل نسخة البوت [${botName}] بنجاح!\x1b[0m`);
 
             // حفظ الجلسة داخل الـ Map
             activeBots.set(botName, { api, prefix, allowedCommands });
@@ -64,25 +63,26 @@ app.post('/api/launch', async (req, res) => {
                 const args = message.slice(currentPrefix.length).split(/ +/);
                 const commandName = args.shift().toLowerCase();
 
-                // 🌟 التحقق الذكي: هل هذا الأمر اختاره العضو في لوحة التحكم حقتك؟
+                // 🌟 التحقق الذكي من الأوامر المحددة من اللوحة الزرقاء
                 if (allowedCommands && allowedCommands.length > 0) {
                     if (!allowedCommands.includes(commandName)) {
-                        // إذا العضو ما فعل هذا الأمر في نسخته، يتجاهله البوت تماماً
-                        return;
+                        return; // يتجاهل الأمر لو العضو ما منشطه في لوحته
                     }
                 }
 
-                // تشغيل منطق الأمر المستدعى (مثال استدعاء ملفات مجلد commands)
+                // تشغيل ملف الأمر المتوافق مع هيكلة سورس أبلين كينجي
                 try {
                     const cmdFile = path.join(commandsPath, `${commandName}.js`);
                     if (fs.existsSync(cmdFile)) {
                         const command = require(cmdFile);
-                        if (command && command.onStart) {
+                        if (command && command.run) {
+                            await command.run({ api, event, args });
+                        } else if (command && command.onStart) {
                             await command.onStart({ api, event, args });
                         }
                     }
                 } catch (cmdErr) {
-                    log('error', `Error executing [${commandName}] on bot [${botName}]: ${cmdErr.message}`);
+                    console.error(`[Cmd Error] Failed executing [${commandName}] on [${botName}]:`, cmdErr.message);
                 }
             });
         });
@@ -90,16 +90,16 @@ app.post('/api/launch', async (req, res) => {
         return res.json({ success: true });
 
     } catch (e) {
-        return res.status(400).json({ success: false, error: "صيغة الـ appState غير صحيحة، يرجى تمرير كود JSON سليم." });
+        return res.status(400).json({ success: false, error: "صيغة الـ appState غير صحيحة، تأكد من نسخ كود الـ JSON كاملاً." });
     }
 });
 
-// تشغيل السيرفر الأساسي للوحة
+// تشغيل السيرفر الأساسي
 app.listen(PORT, () => {
-    log('info', `🌐 Aplin AI Server is running on port ${PORT}`);
+    console.log(`\x1b[36m🌐 لوحة تحكم أبلين شقالة بنجاح على الميناء: ${PORT}\x1b[0m`);
 });
 
 process.on('SIGINT', () => {
-    log('info', 'Stopping server and killing sessions...');
+    console.log('Stopping server...');
     process.exit(0);
 });
