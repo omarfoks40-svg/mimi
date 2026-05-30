@@ -3,14 +3,49 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Bot Info Dashboard</title>
+  <title>Aplin AI Dashboard</title>
   <link rel="stylesheet" href="css/style.css">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* تنسيق إضافي متناسق مع لون الوجّهة الأزرق بدون التخريب عليها */
+    .setup-box {
+      background: rgba(22, 27, 34, 0.85);
+      border: 1px solid #30363d;
+      border-radius: 12px;
+      padding: 20px;
+      margin-top: 20px;
+      text-align: left;
+      backdrop-filter: blur(8px);
+    }
+    .form-group { margin-bottom: 15px; }
+    .form-group label { display: block; margin-bottom: 5px; color: #58a6ff; font-weight: 500; }
+    .form-group input, .form-group textarea {
+      width: 100%; padding: 10px; background: #21262d; border: 1px solid #30363d;
+      border-radius: 6px; color: #f0f6fc; box-sizing: border-box;
+    }
+    .cmd-selection {
+      max-height: 150px; overflow-y: auto; background: #161b22;
+      border: 1px solid #30363d; border-radius: 6px; padding: 10px; margin-top: 5px;
+    }
+    .cmd-item { display: flex; align-items: center; margin-bottom: 8px; color: #c9d1d9; cursor: pointer; }
+    .cmd-item input { width: auto; margin-right: 10px; }
+    .select-all-btn {
+      background: #21262d; color: #58a6ff; border: 1px solid #30363d;
+      padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; margin-bottom: 10px;
+    }
+    .footer-rights {
+      margin-top: 30px; text-align: center; color: #8b949e;
+      font-size: 13px; font-weight: bold; border-top: 1px solid #30363d; padding-top: 15px;
+    }
+    .glow-text {
+      font-family: 'Inter', sans-serif; font-weight: 700;
+      color: #58a6ff; text-shadow: 0 0 10px rgba(88, 166, 255, 0.6);
+    }
+  </style>
 </head>
 <body>
   <div id="particles-js"></div>
   
-
   <div class="bg-elements">
     <div class="floating-element element-1"></div>
     <div class="floating-element element-2"></div>
@@ -26,176 +61,142 @@
         <div class="status-indicator online"></div>
       </div>
       <div class="bot-identity">
-        <h1 id="bot-name" class="bot-name">Loading...</h1>
-        <div class="bot-subtitle">AI Assistant Bot</div>
+        <h1 id="bot-name" class="bot-name glow-text">aplin ai 💚</h1>
+        <div class="bot-subtitle">Multi-Account Session Hub</div>
       </div>
     </div>
 
+    <div class="setup-box">
+      <h3 style="color: #f0f6fc; margin-top: 0; margin-bottom: 15px;">🛠️ تخصيص وتشغيل نسخة بوتك</h3>
+      
+      <div class="form-group">
+        <label>🆔 معرف الحساب أو كود الـ AppState (JSON):</label>
+        <textarea id="user-appstate" placeholder='الصق الـ appState هنا...' rows="3" style="font-family: monospace; resize: none;"></textarea>
+      </div>
 
-    <div class="stats-grid">
+      <div class="form-group">
+        <label>🤖 اسم البوت الاختياري:</label>
+        <input type="text" id="user-botname" placeholder="مثال: بوت لينكس المطور">
+      </div>
+
+      <div class="form-group">
+        <label>⚡ البادئة الاختيارية (Prefix):</label>
+        <input type="text" id="user-prefix" placeholder="مثال: !" value="!">
+      </div>
+
+      <div class="form-group">
+        <label>📝 اختر الأوامر المراد تشغيلها في نسختك:</label>
+        <button class="select-all-btn" onclick="toggleSelectAll()">✅ اختيار الكل</button>
+        <div class="cmd-selection" id="commands-checkboxes">
+          <div class="cmd-item"><span style="color: #8b949e;">جاري سحب الأوامر المتوفرة...</span></div>
+        </div>
+      </div>
+
+      <button class="primary-button" onclick="launchMultiBot()" style="width: 100%; margin-top: 10px;">
+        <span class="button-icon">🚀</span> تشغيل النسخة الحين
+      </button>
+      <div id="launch-status" style="margin-top: 10px; font-weight: bold; text-align: center;"></div>
+    </div>
+
+    <div class="stats-grid" style="margin-top: 20px;">
       <div class="stat-card">
         <div class="stat-icon">⚡</div>
         <div class="stat-content">
           <div class="stat-label">Prefix</div>
-          <div id="bot-prefix" class="stat-value loading">Loading...</div>
+          <div id="bot-prefix" class="stat-value">Multi</div>
         </div>
       </div>
-      
       <div class="stat-card">
         <div class="stat-icon">👑</div>
         <div class="stat-content">
           <div class="stat-label">Owner</div>
-          <div id="owner-name" class="stat-value loading">Loading...</div>
+          <div id="owner-name" class="stat-value">Sinko</div>
         </div>
       </div>
-      
-      <div class="stat-card">
-        <div class="stat-icon">🔧</div>
-        <div class="stat-content">
-          <div class="stat-label">Language</div>
-          <div id="language" class="stat-value loading">Loading...</div>
-        </div>
-      </div>
-      
-      <div class="stat-card">
-        <div class="stat-icon">🗄️</div>
-        <div class="stat-content">
-          <div class="stat-label">Database</div>
-          <div id="database-type" class="stat-value loading">Loading...</div>
-        </div>
-      </div>
-      
-      <div class="stat-card">
-        <div class="stat-icon">👥</div>
-        <div class="stat-content">
-          <div class="stat-label">Admins</div>
-          <div id="admin-count" class="stat-value loading">Loading...</div>
-        </div>
-      </div>
-
       <div class="stat-card">
         <div class="stat-icon">📝</div>
         <div class="stat-content">
-          <div class="stat-label">Commands</div>
-          <div id="command-count" class="stat-value loading">Loading...</div>
+          <div class="stat-label">Total Cmds</div>
+          <div id="command-count" class="stat-value">...</div>
         </div>
       </div>
     </div>
 
- 
-    <div class="features-section">
-      <h2 class="section-title">
-        <span class="title-icon">✨</span>
-        Enabled Features
-      </h2>
-      <div id="features-container" class="features-container">
-        <ul id="features-list" class="features-list">
-          <li class="feature-item loading">
-            <span class="feature-dot"></span>
-            <span class="feature-name">Loading features...</span>
-          </li>
-        </ul>
-      </div>
+    <div class="footer-rights">
+      مالك الموقع سينكو ملق وسكي حكيم مسارات 👑
     </div>
 
-
-    <div class="actions-section">
-      <a id="contact-owner" href="#" target="_blank" class="primary-button">
-        <span class="button-icon">💬</span>
-        Contact Owner
-      </a>
-      <button class="secondary-button" onclick="location.reload()">
-        <span class="button-icon">🔄</span>
-        Refresh
-      </button>
-    </div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
   <script>
-
     particlesJS.load('particles-js', 'js/particles.json', function() {
       console.log('callback - particles.js config loaded');
     });
 
-   
-    function removeLoadingState() {
-      document.querySelectorAll('.loading').forEach(element => {
-        element.classList.remove('loading');
-      });
-      document.querySelector('.main-container').classList.add('loaded');
-    }
-
-
-    fetch('/config')
-      .then(response => response.json())
-      .then(config => {
-
-        document.getElementById('bot-picture').src = config.botpicture;
-        document.getElementById('bot-name').textContent = config.botName;
-        document.getElementById('bot-prefix').textContent = config.prefix;
-        document.getElementById('owner-name').textContent = config.ownerName;
-        document.getElementById('contact-owner').href = `https://facebook.com/${config.ownerUID}`;
-        
-   
-        document.getElementById('language').textContent = config.language || 'N/A';
-        document.getElementById('database-type').textContent = config.database?.type || 'N/A';
-        document.getElementById('admin-count').textContent = config.adminUIDs?.length || 0;
-        
-    
-        const featuresList = document.getElementById('features-list');
-        featuresList.innerHTML = ''; 
-        
-        if (config.features) {
-          for (const [feature, isEnabled] of Object.entries(config.features)) {
-            if (isEnabled) {
-              const listItem = document.createElement('li');
-              listItem.className = 'feature-item';
-              listItem.innerHTML = `
-                <span class="feature-dot"></span>
-                <span class="feature-name">${feature}</span>
-              `;
-              featuresList.appendChild(listItem);
-            }
-          }
-        }
-
-
-        if (featuresList.children.length === 0) {
-          const noFeatures = document.createElement('li');
-          noFeatures.className = 'feature-item';
-          noFeatures.innerHTML = `
-            <span class="feature-dot" style="background: #666;"></span>
-            <span class="feature-name" style="color: #666;">No features enabled</span>
-          `;
-          featuresList.appendChild(noFeatures);
-        }
-
-        removeLoadingState();
-      })
-      .catch(error => {
-        console.error('Error fetching config:', error);
-        document.getElementById('bot-name').textContent = 'Error Loading Bot Info';
-        removeLoadingState();
-      });
-
-   
-    fetch('/command-count')
-      .then(response => response.json())
+    // 1. جلب قائمة الأوامر المتاحة من السيرفر عند فتح الصفحة
+    let allSelected = false;
+    fetch('/api/available-commands')
+      .then(res => res.json())
       .then(data => {
         document.getElementById('command-count').textContent = data.count;
-      })
-      .catch(error => {
-        console.error('Error fetching command count:', error);
-        document.getElementById('command-count').textContent = 'N/A';
+        const container = document.getElementById('commands-checkboxes');
+        container.innerHTML = '';
+        data.commands.forEach(cmd => {
+          const div = document.createElement('div');
+          div.className = 'cmd-item';
+          div.innerHTML = `<input type="checkbox" class="cmd-cb" value="${cmd}"> <span>${cmd}</span>`;
+          container.appendChild(div);
+        });
+      }).catch(() => {
+        document.getElementById('commands-checkboxes').innerHTML = '❌ فشل جلب الأوامر.';
       });
 
-    
-    setTimeout(() => {
-      if (!document.querySelector('.main-container').classList.contains('loaded')) {
-        removeLoadingState();
+    // 2. دالة تشغيل واختيار الكل
+    function toggleSelectAll() {
+      const checkboxes = document.querySelectorAll('.cmd-cb');
+      allSelected = !allSelected;
+      checkboxes.forEach(cb => cb.checked = allSelected);
+    }
+
+    // 3. إرسال الطلب وتشغيل الحساب بالسيرفر
+    async function launchMultiBot() {
+      const appStateString = document.getElementById('user-appstate').value.trim();
+      const botName = document.getElementById('user-botname').value.trim();
+      const prefix = document.getElementById('user-prefix').value.trim();
+      const statusDiv = document.getElementById('launch-status');
+
+      const selectedCmds = [];
+      document.querySelectorAll('.cmd-cb:checked').forEach(cb => selectedCmds.push(cb.value));
+
+      if(!appStateString || !botName) {
+        statusDiv.style.color = '#f85149';
+        statusDiv.innerText = '❌ يرجى ملء الـ appState واسم البوت!';
+        return;
       }
-    }, 5000); 
+
+      statusDiv.style.color = '#58a6ff';
+      statusDiv.innerText = '⏳ جاري فحص الحساب وتشغيل النسخة...';
+
+      try {
+        const response = await fetch('/api/launch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ appStateString, botName, prefix, allowedCommands: selectedCmds })
+        });
+        const data = await response.json();
+        if(data.success) {
+          statusDiv.style.color = '#2ea44f';
+          statusDiv.innerText = `🟢 تم التفعيل! البوت [${botName}] شغال الآن بحسابك.`;
+        } else {
+          statusDiv.style.color = '#f85149';
+          statusDiv.innerText = '❌ خطأ: ' + data.error;
+        }
+      } catch(e) {
+        statusDiv.style.color = '#f85149';
+        statusDiv.innerText = '❌ فشل الاتصال بالسيرفر الخلفي.';
+      }
+    }
   </script>
 </body>
 </html>
