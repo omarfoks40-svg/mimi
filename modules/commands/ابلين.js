@@ -69,7 +69,7 @@ module.exports = {
     version: "26.5.0",
     author: "SINKO",
     prefix: false,
-    category: "ai"
+    category: ""
   },
 
   onStart: async function ({ api, event, args }) {
