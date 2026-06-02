@@ -1,12 +1,13 @@
 const { Threads } = require('../../database/database');
+const axios = require('axios'); // بنحتاجه لتحميل الصورة القديمة وإعادتها
 
 module.exports = {
   config: {
     name: "antiGuard",
     eventType: ["log:subscribe", "log:unsubscribe", "log:thread-name", "log:thread-icon", "log:user-nickname"],
-    version: "3.0.0",
+    version: "3.5.0",
     author: "محمد (SINKO) / Gemini",
-    description: "حماية احترافية - دمج نظام الألقاب الذكي مع قاعدة البيانات"
+    description: "حماية احترافية متكاملة - ألقاب، أسماء، منع إضافة المطرودين، وإعادة الصورة"
   },
 
   onStart: async ({ api, event }) => {
@@ -19,28 +20,26 @@ module.exports = {
 
       // جلب بيانات المجموعة من قاعدة البيانات
       let threadData = (await Threads.get(threadID)) || {};
-      const settings = threadData.settings || {};
-      const anti = settings.antiSettings || settings.anti || {}; // دعم المسميين
+      if (!threadData.settings) threadData.settings = {};
+      
+      const settings = threadData.settings;
+      const anti = settings.antiSettings || settings.anti || {}; 
 
-      // --- [ 1. نظام حماية الألقاب المطور - حسب الاتفاق ] ---
+      // --- [ 1. نظام حماية الألقاب المطور ] ---
       if (logMessageType === "log:user-nickname") {
         const pID = logMessageData.participantID || logMessageData.participant_id;
 
         if (anti.antiChangeNickname === true || anti.antiNickname === true) {
-          // جلب الكنية القديمة من كاش قاعدة البيانات
           const oldNick = (threadData.nicknameCache && threadData.nicknameCache[pID]) ? threadData.nicknameCache[pID] : "";
           
           if (!oldNick || oldNick === "") {
-            // الحالة: لو أصلاً ما عنده لقب (القديم فاضي) -> نمسح الجديد
             await api.changeNickname("", threadID, pID);
             return api.sendMessage("إنت أصلاً ما عندك لقب، ممنوع تفتري وتعمل واحد! 🧹😼", threadID);
           } else {
-            // الحالة: لو عنده لقب قديم -> نرجعه
             await api.changeNickname(oldNick, threadID, pID);
             return api.sendMessage(`لقبك المحفوظ هو "${oldNick}"، بتاريخك مالك معاهو؟ 🐍`, threadID);
           }
         } else {
-          // إذا الحماية معطلة، نحدث "الكاش" باللقب الجديد عشان يكون مرجع للستقبل
           if (!threadData.nicknameCache) threadData.nicknameCache = {};
           threadData.nicknameCache[pID] = logMessageData.nickname || "";
           await Threads.set(threadID, threadData);
@@ -49,25 +48,45 @@ module.exports = {
 
       // --- [ 2. حماية اسم المجموعة ] ---
       if (logMessageType === "log:thread-name" && (anti.antiChangeGroupName === true || anti.antiName === true)) {
-        // نستخدم الاسم القديم الممرر من الحدث أو المخزن في القاعدة
         const oldName = logMessageData.oldName || threadData.name || "المجموعة";
         await api.setTitle(oldName, threadID);
         return api.sendMessage(`اسي مالك مع الاسم دا؟ رجعتو لـ: "${oldName}" 🗿`, threadID);
       }
 
-      // --- [ 3. منع الخروج (Anti-Out) ] ---
+      // --- [ 3. منع الخروج (Anti-Out) - تعديل عدم إرجاع المطرود ] ---
       if (logMessageType === "log:unsubscribe" && (anti.antiOut === true)) {
         const leftID = logMessageData.leftParticipantFbId;
-        if (leftID !== botID) {
+        
+        // لو خرج بنفسه (الآيدي حق الآثور يساوي المغادر) والبوت ليس المغادر -> يرجعه
+        if (leftID !== botID && author == leftID) {
           await api.addUserToGroup(leftID, threadID, (err) => {
             if (!err) api.sendMessage("قال أنا بخليك تخرج بكرامة.. بل بس هنا 🗿🔨", threadID);
           });
         }
       }
 
-      // --- [ 4. حماية صورة المجموعة ] ---
-      if (logMessageType === "log:thread-icon" && (anti.antiChangeGroupImage === true || anti.antiIcon === true)) {
-         return api.sendMessage("🛡️ تغيير صورة المجموعة ممنوع يا وهم.", threadID);
+      // --- [ 4. حماية صورة المجموعة (التصليح الشامل) ] ---
+      if (logMessageType === "log:thread-icon") {
+        if (anti.antiChangeGroupImage === true || anti.antiIcon === true) {
+          // إذا الحماية شغالة، بنحاول نرجع الصورة القديمة لو مخزنة في الـ كاش/الحدث
+          const oldImageURL = logMessageData.image?.url || threadData.imageSrc; 
+          
+          if (oldImageURL) {
+            api.sendMessage("🛡️ تغيير صورة المجموعة ممنوع يا وهم! جاري إعادة الصورة الأصلية...", threadID);
+            try {
+              const imageStream = (await axios.get(oldImageURL, { responseType: 'stream' })).data;
+              await api.changeGroupImage(imageStream, threadID);
+            } catch (imgErr) {
+              console.error("Failed to restore group image:", imgErr);
+            }
+          } else {
+            return api.sendMessage("🛡️ تغيير صورة المجموعة ممنوع، بس ما عندي كاش للصورة القديمة عشان أرجعها!", threadID);
+          }
+        } else {
+          // لو الحماية مقفولة، نحدث رابط الصورة الجديدة في القاعدة عشان نرجع لها مستقبلاً
+          threadData.imageSrc = logMessageData.image?.url || "";
+          await Threads.set(threadID, threadData);
+        }
       }
 
     } catch (err) {
