@@ -9,7 +9,7 @@ module.exports = {
     author: "SINKO",
     countDown: 5,
     prefix: false,
-    category: "الوسائط " // تم تعديل الفئة ليتوافق مع فئاتك الـ 4 الأساسية
+    category: "media" // تم تعديل الفئة ليتوافق مع فئاتك الـ 4 الأساسية
   },
 
   onStart: async function ({ api, event, args }) {
