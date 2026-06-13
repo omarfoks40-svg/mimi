@@ -28,9 +28,9 @@ module.exports = {
   config: {
     name: 'عدلي',
     aliases: ['بندلين', 'بنتي', 'تعديل'],
-    version: '5.0.0',
-    author: 'SINKO ',
-    description: 'تعديل الصور بـ 3 سيرفرات متبادلة لحماية البوت مع ترجمة تلقائية وزخرفة',
+    version: '5.5.0',
+    author: 'SINKO',
+    description: 'تعديل الصور بـ 3 سيرفرات متبادلة مع معالجة ذكية للكلمات الصعبة وترجمة تلقائية وزخرفة',
     countDown: 8,
     prefix: true,
     category: 'ai',
@@ -61,7 +61,7 @@ module.exports = {
     api.setMessageReaction("⌛", messageID, (err) => {}, true);
 
     // رسالة الانتظار لحماية البوت من الموت في راندر
-    const waitMsg = `> ˼🌌˹↜  Aplin  ↶\nجاري تعديل صورتك والترجمة...`;
+    const waitMsg = `> ˼🌌˹↜  Aplin  ↶\nجاري تهيئة المعالجة الذكية وصياغة التعديل...`;
     
     api.sendMessage(waitMsg, threadID, async (err, info) => {
       const cachePath = path.join(__dirname, "cache", `sd_${crypto.randomBytes(4).toString('hex')}.png`);
@@ -69,8 +69,23 @@ module.exports = {
         fs.mkdirSync(path.join(__dirname, "cache"));
       }
 
-      // 1. ترجمة النص تلقائياً إلى الإنجليزية لضمان عمل السيرفرات بأعلى كفاءة
-      const promptEn = await translateText(promptAr);
+      // 🧠 نظام المعالجة الذكية لتصحيح صياغة الكلمات الصعبة والمحفوفة بالمخاطر في السيرفرات
+      let optimizedPromptAr = promptAr;
+      
+      const containsNudityOrMask = /احذفي الملابس|الملابس|نقاب|نغاب|الوجه|وجه/.test(promptAr);
+      
+      if (containsNudityOrMask) {
+        // إعادة صياغة الطلب الصعب بأسلوب وصف إيجابي فخم لضمان إظهار الملامح والعباءة بدون لخبطة
+        optimizedPromptAr = "امرأة بوجه واضح ومكشوف بالكامل، ملامح جميلة ومفصلة، ترتدي عباءة أنيقة ومحتشمة، جودة عالية جداً، إضاءة ممتازة ومثالية";
+      }
+
+      // معالجة كلمات التوضيح لضمان دقة الصورة والـ Unblur
+      if (/وضحي|توضيح|وضح/.test(promptAr)) {
+        optimizedPromptAr += ", unblur, highly detailed, 4k sharp focus, cleared face, hyperrealistic";
+      }
+
+      // 1. ترجمة النص المهيأ والذكي تلقائياً إلى الإنجليزية
+      const promptEn = await translateText(optimizedPromptAr);
 
       // جلب رابط السيرفر الثالث وتجهيز السيرفرات في مصفوفة
       const hakimBaseURL = await baseApiUrl();
@@ -78,7 +93,7 @@ module.exports = {
       const servers = [
         {
           name: "السيرفر الأول (Uncensored SD)",
-          url: `https://uncensored-sd.onrender.com/api/sd?prompt=${encodeURIComponent(promptEn)}&imageUrl=${encodeURIComponent(imageUrl)}&v=${crypto.randomBytes(4).toString('hex')}`,
+          url: `https://uncensored-sd.onrender.com/api/sd?prompt=${encodeURIComponent(promptEn + ", masterpiece, photorealistic, cinematic lighting")}&imageUrl=${encodeURIComponent(imageUrl)}&v=${crypto.randomBytes(4).toString('hex')}`,
           method: "GET",
           responseType: "stream"
         },
@@ -142,7 +157,6 @@ module.exports = {
 
         } catch (error) {
           console.error(`[Aplin] فشل ${server.name}:`, error.message);
-          // يستمر في الحلقة لتجربة السيرفر التالي تلقائياً
         }
       }
 
@@ -156,7 +170,8 @@ module.exports = {
         const successBody = `> ˼⏰˹↜ الـتـوقـيـت ↶
 ╮──────────────⟢ـ
 ┆˼🧭˹┊ ↜｢ ${dateStr} ｣
-┆˼⚕️˹┊ الوصف ↜｢ ${promptAr} ｣
+┆˼⚕️˹┊ الطلب الأصلي ↜｢ ${promptAr} ｣
+┆˼🛡️˹┊ الـوضعية ↜｢ معالجة ذكية محسنة ⚡ ｣
 ┆˼🌁˹┊ الـيـوم ↜｢ ${dayStr} ｣
 ┆˼🕕˹┊ الـوقـت ↜｢ ${timeStr} ｣
 ╯──────────────⟢ـ
@@ -172,9 +187,8 @@ module.exports = {
         }, messageID);
 
       } else {
-        // إذا فشلت كافة السيرفرات الـ 3
         if (fs.existsSync(cachePath)) fs.removeSync(cachePath);
-        api.sendMessage('⚠️ جميع السيرفرات مضغوطة حالياً أو حجم الصورة غير مدعوم، جرب وقت تاني يا ملك.', threadID, messageID);
+        api.sendMessage('⚠️ جميع سيرفرات التعديل مضغوطة حالياً أو تم حظر الكلمات من مزود الخدمة، جرب صياغة أخرى يا ملك.', threadID, messageID);
         api.setMessageReaction("❌", messageID, () => {}, true);
         if (info) api.unsendMessage(info.messageID);
       }
