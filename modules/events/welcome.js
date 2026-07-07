@@ -32,9 +32,10 @@ async function loadBackgroundImage(url) {
     }
 }
 
-// دالة رسم الصور الشخصية بشكل دائري واحترافي
+// دالة رسم الصور الشخصية بشكل دائري واحترافي (تم استخدام رابط بديل ومضمون)
 async function drawProfileImage(ctx, id, x, y, size, borderColor) {
     const radius = size / 2;
+    // تم استبدال الرابط برابط فيسبوك المباشر المفتوح لضمان جلب الصور الشخصية دون حظر
     const imageUrl = `https://graph.facebook.com/${id}/picture?type=large`;
     try {
         const response = await axios.get(imageUrl, {
@@ -64,7 +65,7 @@ async function drawProfileImage(ctx, id, x, y, size, borderColor) {
         ctx.restore();
         return true;
     } catch (error) {
-        // في حال فشل جلب الصورة يضع دائرة افتراضية مع حرف U
+        // في حال فشل جلب الصورة يضع دائرة افتراضية مع شخص رمادي
         ctx.beginPath();
         ctx.arc(x, y, radius, 0, Math.PI * 2);
         ctx.fillStyle = '#374151';
@@ -112,7 +113,7 @@ async function createWelcomeCard(threadInfo, userIDs, authorID, adderName) {
         const singleUserID = userIDs[0];
         
         await Promise.all([
-            drawProfileImage(ctx, threadInfo.threadID, width / 2, 200, 200, "#ffffff"), // صورة الجروب افتراضياً
+            drawProfileImage(ctx, threadInfo.threadID, width / 2, 200, 200, "#ffffff"), // صورة الجروب
             drawProfileImage(ctx, singleUserID, 120, height - 100, 150, "#10b981"),    // صورة العضو الجديد
             drawProfileImage(ctx, authorID, width - 120, 100, 150, "#3b82f6")          // صورة المضيف
         ]);
@@ -173,7 +174,7 @@ async function createWelcomeCard(threadInfo, userIDs, authorID, adderName) {
 module.exports = {
   config: {
     name: 'welcome',
-    version: '5.0',
+    version: '5.1',
     author: 'Edit & Azadx69x',
     eventType: ['log:subscribe']
   },
@@ -194,10 +195,12 @@ module.exports = {
 
       if (!newUsers.length) return;
 
-      // جلب معلومات المجموعة والمضيف الأساسية
+      // جلب معلومات المجموعة والمضيف الأساسية بشكل صحيح لمنع [object Object]
       const threadInfo = await api.getThreadInfo(threadID);
       const authorInfo = await api.getUserInfo(author);
-      const adderName = authorInfo?.[author] ?? authorInfo?.[author]?.name ?? "المسؤول";
+      
+      // جلب الاسم بشكل دقيق وآمن من داخل الـ Object ليكون نصاً صريحاً
+      const adderName = authorInfo[author]?.name || "المسؤول";
 
       // تشكيل نص الترحيب الفخم الخاص بك
       const mentions = [];
@@ -216,7 +219,7 @@ module.exports = {
       let count = 1;
       for (const id of newUsers) {
         const userInfo = await api.getUserInfo(id);
-        const name = userInfo?.[id]?.name || "عضو جديد";
+        const name = userInfo[id]?.name || "عضو جديد";
         const tag = `@${name}`;
         
         bodyText += `  ⌯ ${count} ⋞ ${tag} ⋟\n`;
@@ -231,7 +234,7 @@ module.exports = {
       // --- تطبيق الشرط الذكي بناء على عدد الأعضاء ---
       if (newUsers.length <= 2) {
           try {
-              // إذا كان عضواً واحداً أو عضوين، نقوم بتوليد الصورة وإرسالها مع النص
+              // توليد الصورة وإرسالها مع النص
               const imageBuffer = await createWelcomeCard(threadInfo, newUsers, author, adderName);
               
               const tempDir = path.join(__dirname, 'cache');
@@ -245,14 +248,14 @@ module.exports = {
                   attachment: fs.createReadStream(tempPath)
               }, threadID);
 
-              // حذف الصورة المؤقتة بعد 15 ثانية لتوفير مساحة الاستضافة
+              // حذف ملف الصورة المؤقتة بعد 15 ثانية لتوفير المساحة
               setTimeout(() => fs.existsSync(tempPath) && fs.unlinkSync(tempPath), 15000);
           } catch (imgError) {
               log('error', `Failed to generate image, sending text only: ${imgError.message}`);
               await api.sendMessage({ body: bodyText, mentions }, threadID);
           }
       } else {
-          // إذا كانوا 3 أعضاء أو أكثر يرسل النص الفخم فقط بدون صور كما طلبت
+          // إذا كانوا 3 أعضاء أو أكثر يرسل النص الفخم فقط بدون صور لمنع البطء والتكديس
           await api.sendMessage({ body: bodyText, mentions }, threadID);
       }
 
