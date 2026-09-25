@@ -15,7 +15,7 @@ module.exports = {
 
   onStart: async ({ api, event, args }) => {
     try {
-      const developerID = '61588108307572'; // أيديك
+      const developerID = '61593972777711'; // أيديك
       const senderID = event.senderID;
 
       // إذا لم يكن المرسل هو المطور، تفاعل بـ ❌ وتوقف
