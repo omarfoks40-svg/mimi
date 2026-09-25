@@ -19,7 +19,7 @@ module.exports = {
         name: 'اوامر',
         aliases: ['menu', 'help', 'الأوامر'],
         version: '8.7.5',
-        author: 'سينكو',
+        author: 'MAHER',
         countDown: 5,
         prefix: true,
         category: 'المجموعة'
@@ -118,7 +118,7 @@ module.exports = {
         
         msg += `╯──────────────⟢ـ\n`;
         msg += `┊˼📖˹┊ الإجمالي ↜ ${uniqueCommands.length} أمر\n`;
-        msg += `┊˼🪸˹┊ SINKO | ✅`;
+        msg += `┊˼🪸˹┊ MAHER | ✅`;
 
         // إرسال النص مباشرة بدون صورة
         return api.sendMessage(msg, threadID, messageID);
