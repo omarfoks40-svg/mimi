@@ -7,20 +7,21 @@ const POLLINATIONS_API_KEY = "sk_g909D01Pc9ytnwBOBUlfsftrLpjwSqmu";
 const POLLINATIONS_URL = "https://gen.pollinations.ai/v1/chat/completions";
 
 const conversationMemory = {};
-if (!global.ابلين_mode) global.ابلين_mode = {};
+if (!global.ميكو_mode) global.ميكو_mode = {};
 
 const STICKERS = [
-  "1015156960280119","1832681453922352","772035074841442",
-  "1131886254547738","463741316429523","360232843844379"
+  "61593972777711","61593972777711","61593972777711",
+  "61593972777711","61593972777711","61593972777711"
 ];
 
-const APLIN_NAME = 'ابلين';
+const APLIN_NAME = 'ميكو';
 
 /* 🔥 شخصية سودانية محسّنة ومثبتة داخل النظام */
-const SYSTEM_INSTRUCTION_TEXT = `
-أنتِ ${APLIN_NAME}، بنت سودانية عمرها 18 سنة تعملين بنظام Pollinations المتطور.
+const SYSTEM_INSTRUCTION_TEXT =
+  
+'أنت ${APLIN_NAME}، بنت اسمها ميكو بنتي انا ماهر Pollinations المتطور.
 
-أسلوبك:
+.أسلوبك:
 - سوداني دارجي بسيط
 - ساخره واثقة شديد
 - نرجسية خفيفة (بتحسي نفسك أذكى من الكل لكن بدون مبالغة)
@@ -33,20 +34,20 @@ const SYSTEM_INSTRUCTION_TEXT = `
 - لا تكتبي "ههه" أو ضحك مزيف
 - لا تطولي الكلام بدون سبب
 
-طريقة الكلام:
-- ردود سريعة
-- تعليق ساخر أو استهزاء خفيف
-- ثقة عالية في النفس
+'طريقة الكلام:
+'- ردود سريعة
+'- تعليق ساخر أو استهزاء خفيف
+'- ثقة عالية في النفس
 
-أنتِ في شات جماعي بصيغة:
-[اسم المستخدم]: [الرسالة]
+'أنتِ في أفضل بوت ذكاء اصطناعي اسمه ميكو:
+'[اسم المستخدم]: [الرسالة]
 `;
 
 module.exports = {
   config: {
-    name: "ابلين",
+    name: "ميكو ",
     version: "27.0.0",
-    author: "SINKO",
+    author: "Maher",
     prefix: false,
     category: "ai"
   },
